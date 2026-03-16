@@ -95,7 +95,6 @@ struct AdvectionTerm{V,F} <: AbstractFrontTerm
 end
 
 AdvectionTerm(vel) = AdvectionTerm(vel, (v, s, t) -> nothing)
-AdvectionTerm(vel, f) = AdvectionTerm{typeof(vel),typeof(f)}(vel, f)
 
 velocity(term::AdvectionTerm)     = term.velocity
 update_func(term::AdvectionTerm)  = term.update_func
@@ -182,7 +181,6 @@ struct NormalMotionTerm{V,F} <: AbstractFrontTerm
 end
 
 NormalMotionTerm(sp) = NormalMotionTerm(sp, (v, s, t) -> nothing)
-NormalMotionTerm(sp, f) = NormalMotionTerm{typeof(sp),typeof(f)}(sp, f)
 
 speed(term::NormalMotionTerm)       = term.speed
 update_func(term::NormalMotionTerm) = term.update_func
@@ -279,7 +277,6 @@ struct CurvatureMotionTerm{C,F} <: AbstractFrontTerm
 end
 
 CurvatureMotionTerm(coeff) = CurvatureMotionTerm(coeff, (c, s, t) -> nothing)
-CurvatureMotionTerm(coeff, f) = CurvatureMotionTerm{typeof(coeff),typeof(f)}(coeff, f)
 
 coefficient(term::CurvatureMotionTerm)  = term.coefficient
 update_func(term::CurvatureMotionTerm)  = term.update_func

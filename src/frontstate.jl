@@ -55,7 +55,7 @@ function FrontState(mesh::SurfaceMesh; t::Real=0.0, fields=Dict{Symbol,Any}(),
     geom = compute_geometry(mesh)
     if build_dec
         dec  = FrontIntrinsicOps.build_dec(mesh, geom)
-        geom = compute_curvature(mesh, geom, dec)
+        geom = FrontIntrinsicOps.compute_curvature(mesh, geom, dec)
     else
         dec = nothing
     end

@@ -39,7 +39,7 @@ function refresh_geometry!(state::FrontState; rebuild_dec::Bool=true)
         new_dec = FrontIntrinsicOps.build_dec(mesh, state.geom)
         state.dec = new_dec
         if mesh isa SurfaceMesh
-            state.geom = compute_curvature(mesh, state.geom, new_dec)
+            state.geom = FrontIntrinsicOps.compute_curvature(mesh, state.geom, new_dec)
         end
     end
     return state

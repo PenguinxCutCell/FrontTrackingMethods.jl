@@ -39,7 +39,7 @@ A well-distributed front has this close to 1.
 """
 function edge_length_spread(state::FrontState)
     ls = state.geom.edge_lengths
-    return maximum(ls) / maximum(minimum(ls), eps(eltype(ls)))
+    return maximum(ls) / max(minimum(ls), eps(eltype(ls)))
 end
 
 """
