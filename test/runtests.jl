@@ -3,25 +3,44 @@ using FrontTrackingMethods
 using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
+using Statistics
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helpers: create a circle CurveMesh
+# runtests.jl – Test dispatcher for FrontTrackingMethods v0.2
+#
+# Test files
+# ----------
+#   test_utils.jl                  – shared helpers (geometry constructors, assertions)
+#   test_frontfield.jl             – FrontField API
+#   test_frontstate.jl             – FrontState API
+#   test_advection_terms.jl        – AdvectionTerm (pure translation)
+#   test_normal_motion.jl          – NormalMotionTerm
+#   test_curvature_motion.jl       – CurvatureMotionTerm
+#   test_curve_redistribution.jl   – CurveEqualArcRedistributor, AdaptiveCurveRemesher
+#   test_surface_redistribution.jl – SurfaceTangentialRedistributor, ExperimentalSurfaceRemesher
+#   test_transfer_curve.jl         – field transfer on curves
+#   test_transfer_surface.jl       – field transfer on surfaces
+#   test_benchmark_rigid_2d.jl     – rigid 2-D translation / rotation
+#   test_benchmark_rigid_3d.jl     – rigid 3-D translation / rotation
+#   test_benchmark_zalesak_2d.jl   – Zalesak disk one rotation
+#   test_benchmark_vortex_2d.jl    – Rider–Kothe reversed vortex
+#   test_benchmark_serpentine_2d.jl – serpentine deformation smoke test
+#   test_benchmark_enright_3d.jl   – Enright 3-D deformation smoke test
 # ─────────────────────────────────────────────────────────────────────────────
+
+# ── Backward-compatible helpers (preserved from v0.1 test suite) ─────────────
+# These are kept here so the original test blocks below continue to work.
 
 function make_circle(R=1.0, N=64)
     T = Float64
     angles = [2π * (i-1) / N for i in 1:N]
-    pts  = [SVector{2,T}(R * cos(θ), R * sin(θ)) for θ in angles]
+    pts   = [SVector{2,T}(R * cos(θ), R * sin(θ)) for θ in angles]
     edges = [SVector{2,Int}(i, mod1(i+1, N)) for i in 1:N]
     return CurveMesh(pts, edges)
 end
 
-function make_sphere(R=1.0, refinements=2)
-    return FrontIntrinsicOps.sphere_mesh(R; refinements=refinements)
-end
-
 # ─────────────────────────────────────────────────────────────────────────────
-# A. Constructor / API tests
+# Original v0.1 test blocks (preserved)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @testset "Constructor / API" begin
@@ -54,10 +73,6 @@ end
     @test current_time(eq) == 0.0
     @test current_state(eq) isa FrontState
 end
-
-# ─────────────────────────────────────────────────────────────────────────────
-# B. Pure translation – circle
-# ─────────────────────────────────────────────────────────────────────────────
 
 @testset "Pure translation – circle" begin
     R  = 1.0
@@ -92,15 +107,7 @@ end
     end
 end
 
-# ─────────────────────────────────────────────────────────────────────────────
-# C. Constant normal motion – circle
-# ─────────────────────────────────────────────────────────────────────────────
-
 @testset "Constant normal motion – circle (inward, shrink)" begin
-    # Sign convention for CurveMesh:
-    # vertex_normals are INWARD for CCW circles.
-    # NormalMotionTerm with Vn > 0 moves inward → circle shrinks.
-    # R(t) = R0 - Vn * t  (since inward normal, Vn > 0 reduces radius)
     R0 = 1.0
     Vn = 0.3
     tf = 0.5
@@ -119,24 +126,13 @@ end
     radii  = [norm(p - center) for p in pts]
     R_mean = sum(radii) / length(radii)
 
-    # Center should stay at origin
     @test norm(center) < 1e-3
 
-    # Radius should be close to R0 - Vn*tf
     R_exact = R0 - Vn * tf
     @test abs(R_mean - R_exact) / R_exact < 0.02
 end
 
-# ─────────────────────────────────────────────────────────────────────────────
-# D. Curvature motion – circle (curve-shortening flow)
-# ─────────────────────────────────────────────────────────────────────────────
-
 @testset "Curve-shortening flow on circle" begin
-    # Sign convention (from FrontIntrinsicOps):
-    # For CCW circles, signed_curvature > 0, vertex_normals point INWARD.
-    # CurvatureMotionTerm velocity = β * κ * n_inward.
-    # β > 0 → inward motion → shrinkage.
-    # Exact: R(t) = sqrt(R0^2 - 2β t).
     R0   = 1.0
     beta = 0.1
     tf   = 2.0
@@ -159,18 +155,12 @@ end
     @test abs(R_mean - R_exact) / R_exact < 0.02
 end
 
-# ─────────────────────────────────────────────────────────────────────────────
-# E. Redistribution – curve equal-arclength
-# ─────────────────────────────────────────────────────────────────────────────
-
 @testset "Equal-arclength redistribution" begin
-    # Build a circle with clustered vertices
     N = 32
     R = 1.0
-    # Cluster first half of vertices in a quarter arc
     angles_bad = vcat(
-        LinRange(0, π/2, 24),    # 24 vertices in first quarter
-        LinRange(π/2, 2π, 10)[2:end]  # 8 in the rest (including wrap)
+        LinRange(0, π/2, 24),
+        LinRange(π/2, 2π, 10)[2:end]
     )
     pts  = [SVector{2,Float64}(R*cos(θ), R*sin(θ)) for θ in angles_bad[1:N]]
     edges = [SVector{2,Int}(i, mod1(i+1, N)) for i in 1:N]
@@ -186,33 +176,22 @@ end
     A_after  = front_enclosed_measure(state)
     spread_after = edge_length_spread(state)
 
-    # Closure: still N vertices
     @test length(state.mesh.points) == N
-    # Area nearly preserved
     @test abs(A_after - A_before) / A_before < 0.02
-    # Spread reduced (better uniformity)
     @test spread_after < spread_before
 end
-
-# ─────────────────────────────────────────────────────────────────────────────
-# F. Field transfer – constant field preserved
-# ─────────────────────────────────────────────────────────────────────────────
 
 @testset "Field transfer – constant field preserved" begin
     N = 32
     R = 1.0
     mesh_old = make_circle(R, N)
-    mesh_new = make_circle(R * 1.0001, N)  # slightly different but same connectivity
+    mesh_new = make_circle(R * 1.0001, N)
 
     oldvals = fill(3.14, N)
     newvals = similar(oldvals)
     transfer_vertex_field!(newvals, mesh_old, oldvals, mesh_new; method=:piecewise_linear)
     @test all(abs.(newvals .- 3.14) .< 1e-10)
 end
-
-# ─────────────────────────────────────────────────────────────────────────────
-# G. Diagnostics
-# ─────────────────────────────────────────────────────────────────────────────
 
 @testset "Diagnostics" begin
     mesh  = make_circle(1.0, 64)
@@ -226,36 +205,53 @@ end
     @test h_mea >= h_min && h_mea <= h_max
 
     c = front_centroid(state)
-    @test norm(c) < 1e-10   # circle centered at origin
+    @test norm(c) < 1e-10
 
     A = front_enclosed_measure(state)
-    @test abs(A - π) / π < 0.01   # area ≈ π for R=1
+    @test abs(A - π) / π < 0.01
 
     @test check_front_validity(state; warn=false)
 end
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3-D sphere tests (if sphere_mesh available)
-# ─────────────────────────────────────────────────────────────────────────────
-
 @testset "Sphere translation" begin
-    try
-        mesh = make_sphere(1.0, 2)
-        u    = SVector(1.0, 0.5, -0.3)
-        tf   = 0.5
-        eq   = FrontEquation(;
-            terms=(AdvectionTerm(u),),
-            front=mesh, t=0.0, integrator=RK2()
-        )
-        integrate!(eq, tf; dt=0.05)
+    mesh0 = make_sphere_benchmark_surface(
+        center = SVector(0.0, 0.0, 0.0),
+        R      = 1.0,
+        refinement = 2,
+    )
+    u  = SVector(1.0, 0.5, -0.3)
+    tf = 0.5
+    eq = FrontEquation(;
+        terms=(AdvectionTerm(u),),
+        front=mesh0, t=0.0, integrator=RK2()
+    )
+    integrate!(eq, tf; dt=0.05)
 
-        pts    = eq.state.mesh.points
-        center = sum(pts) / length(pts)
-        exact  = SVector(1.0, 0.5, -0.3) .* tf
-        @test norm(center - exact) < 1e-6
-    catch e
-        @warn "Skipping sphere test: $e"
-    end
+    pts    = eq.state.mesh.points
+    center = sum(pts) / length(pts)
+    exact  = SVector(1.0, 0.5, -0.3) .* tf
+    @test norm(center - exact) < 1e-6
 end
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.2 test files
+# ─────────────────────────────────────────────────────────────────────────────
+
+include("test_frontfield.jl")
+include("test_frontstate.jl")
+include("test_advection_terms.jl")
+include("test_normal_motion.jl")
+include("test_curvature_motion.jl")
+include("test_curve_redistribution.jl")
+include("test_surface_redistribution.jl")
+include("test_transfer_curve.jl")
+include("test_transfer_surface.jl")
+include("test_benchmark_rigid_2d.jl")
+include("test_benchmark_rigid_3d.jl")
+include("test_benchmark_zalesak_2d.jl")
+include("test_benchmark_vortex_2d.jl")
+include("test_benchmark_serpentine_2d.jl")
+include("test_benchmark_enright_3d.jl")
+
 println("All FrontTrackingMethods tests passed.")
+
