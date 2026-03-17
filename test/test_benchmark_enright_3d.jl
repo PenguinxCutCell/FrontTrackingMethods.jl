@@ -11,8 +11,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Enright 3-D deformation – smoke test (coarse mesh)" begin
     # Use T=0.5 (partial cycle) to keep CI runtime manageable
     T_end = 0.5

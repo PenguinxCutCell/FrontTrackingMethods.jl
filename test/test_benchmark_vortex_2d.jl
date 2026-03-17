@@ -9,8 +9,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Rider–Kothe vortex – modest mesh, with redistribution" begin
     T     = 2.0    # reversal period
     dt    = 0.02

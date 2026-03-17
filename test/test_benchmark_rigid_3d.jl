@@ -10,8 +10,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Rigid translation – sphere benchmark" begin
     mesh0 = make_sphere_benchmark_surface(center=SVector(0.35, 0.35, 0.35), R=0.15,
                                           refinement=2)

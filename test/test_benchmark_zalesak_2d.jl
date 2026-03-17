@@ -11,8 +11,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Zalesak disk – one full rotation" begin
     center_disk = SVector(0.5, 0.75)
     center_rot  = SVector(0.5, 0.5)

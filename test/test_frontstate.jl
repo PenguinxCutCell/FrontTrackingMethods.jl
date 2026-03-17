@@ -6,8 +6,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "FrontState – construction and fields" begin
     mesh  = make_circle_curve(R=1.0, N=32)
     state = FrontState(mesh; t=0.5)

@@ -6,8 +6,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Field transfer – constant field preserved (curve)" begin
     mesh_old = make_circle_curve(R=1.0, N=32)
     mesh_new = make_circle_curve(R=1.0, N=48)   # different resolution

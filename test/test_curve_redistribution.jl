@@ -7,8 +7,6 @@ using Statistics
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Equal-arclength redistribution" begin
     # After redistribution, all edges should have equal length
     mesh = make_circle_curve(R=1.0, N=64)

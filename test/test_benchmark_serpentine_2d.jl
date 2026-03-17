@@ -8,8 +8,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Serpentine deformation – smoke test (no collapse)" begin
     Tmax = 1.0   # modest time (full Tmax=3 reserved for long convergence scripts)
     dt   = 0.02

@@ -3,10 +3,18 @@
 # Provides geometry constructors and assertion helpers used across multiple
 # test files.
 
+module TestUtils
+
 using StaticArrays
 using LinearAlgebra
 using Test
 using FrontIntrinsicOps
+
+export make_circle_curve, make_ellipse_curve, make_sphere_surface
+export curve_centroid, surface_centroid, curve_area, surface_volume
+export edge_length_stats, triangle_quality_stats
+export assert_no_nan, assert_closed_curve, assert_positive_orientation_curve
+export assert_surface_is_reasonable
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Geometry constructors
@@ -193,3 +201,5 @@ function assert_surface_is_reasonable(mesh::SurfaceMesh; min_area_tol::Float64=1
     V = surface_volume(mesh)
     @test V > 0
 end
+
+end  # module TestUtils

@@ -6,8 +6,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Curve-shortening flow on circle" begin
     # A circle is a stationary solution of curve-shortening flow:
     # κ = 1/R, so normal speed = -κ → radius shrinks as dR/dt = -1/R

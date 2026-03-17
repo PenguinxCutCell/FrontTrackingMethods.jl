@@ -6,8 +6,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Constant normal motion – circle (inward, shrink)" begin
     R0    = 1.0
     speed = 0.1   # inward speed (Vn > 0 means inward for CCW circles)

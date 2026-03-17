@@ -28,6 +28,9 @@ using Statistics
 #   test_benchmark_enright_3d.jl   – Enright 3-D deformation smoke test
 # ─────────────────────────────────────────────────────────────────────────────
 
+include("test_utils.jl")
+using .TestUtils
+
 # ── Backward-compatible helpers (preserved from v0.1 test suite) ─────────────
 # These are kept here so the original test blocks below continue to work.
 

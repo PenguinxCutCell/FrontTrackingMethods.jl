@@ -10,8 +10,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "Rigid translation – circle benchmark" begin
     mesh0 = make_circle_benchmark_curve(center=SVector(0.5, 0.75), R=0.15, N=128)
     u     = rigid_translation_velocity(SVector(0.1, 0.05))

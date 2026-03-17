@@ -5,8 +5,6 @@ using StaticArrays
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "FrontField – Constructor / API" begin
     mesh = make_circle_curve(R=1.0, N=32)
     N    = length(mesh.points)

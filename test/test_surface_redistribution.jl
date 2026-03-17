@@ -6,8 +6,6 @@ using LinearAlgebra
 using FrontTrackingMethods
 using FrontIntrinsicOps
 
-include("test_utils.jl")
-
 @testset "SurfaceTangentialRedistributor" begin
     mesh  = make_sphere_surface(R=1.0, refinement=2)
     state = FrontState(mesh)
