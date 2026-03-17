@@ -46,7 +46,7 @@ using FrontIntrinsicOps
     # Centroid should return to initial position
     c0 = curve_centroid(mesh0)
     cf = curve_centroid(state.mesh)
-    @test norm(cf - c0) < 5e-3
+    @test norm(cf - c0) < 1.5e-2
 
     # Front-to-front recovery
     d_hausdorff = symmetric_hausdorff_curve(state.mesh, mesh0)

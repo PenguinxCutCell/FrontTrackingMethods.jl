@@ -26,6 +26,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # ─── Setup ───────────────────────────────────────────────────────────────────
 center_disk = SVector(0.5, 0.75)
@@ -84,3 +87,18 @@ run_and_report("Equal-arclength",          CurveEqualArcRedistributor())
 run_and_report("Adaptive remesher",        AdaptiveCurveRemesher(; iterations=5))
 
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("rotate_circle")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = CurveEqualArcRedistributor(; every=5),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="rotate_circle: initial")
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T_rev, 140);
+    title="rotate_circle")
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="rotate_circle: final")
+println("Saved plotting outputs to: $outdir")

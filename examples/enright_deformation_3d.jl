@@ -25,6 +25,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # ─── Parameters ──────────────────────────────────────────────────────────────
 T_end      = 3.0   # full cycle
@@ -75,3 +78,18 @@ run_and_report("B. Tangential redistribution",     SurfaceTangentialRedistributo
 run_and_report("C. Experimental surface remesher", ExperimentalSurfaceRemesher(; iterations=3))
 
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("enright_deformation_3d")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = SurfaceTangentialRedistributor(; iterations=3),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="enright: initial", wireframe=true)
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T_end, 120);
+    title="enright", wireframe=true)
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="enright: final", wireframe=true)
+println("Saved plotting outputs to: $outdir")

@@ -4,6 +4,27 @@ A Julia package for evolving explicit front-tracking meshes in time.
 Operates on Lagrangian polygonal curves and triangulated surfaces
 built on top of [FrontIntrinsicOps.jl](https://github.com/PenguinxCutCell/FrontIntrinsicOps.jl).
 
+## Optional Makie support
+
+Plotting and animation helpers are provided via a weak `Makie` extension.
+Load a Makie backend (for example `CairoMakie`) to enable:
+
+- `plot_state`, `plot_equation`
+- `snapshot`
+- `record_evolution!`
+
+```julia
+using CairoMakie
+using FrontIntrinsicOps, FrontTrackingMethods, StaticArrays
+
+mesh = make_circle_benchmark_curve(center=SVector(0.0, 0.0), R=1.0, N=128)
+eq = FrontEquation(; terms=(AdvectionTerm(SVector(1.0, 0.0)),), front=mesh)
+
+snapshot(eq, "initial.png")
+record_evolution!(eq, "front.mp4", range(0.0, stop=1.0, length=120))
+snapshot(eq, "final.png")
+```
+
 ## Quick start
 
 ```julia
