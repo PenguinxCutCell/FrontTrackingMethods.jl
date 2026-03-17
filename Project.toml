@@ -2,7 +2,14 @@ name = "FrontTrackingMethods"
 uuid = "c7b9f8e7-6a5b-4c3d-9f01-23456789abcd"
 version = "0.1.0"
 
+[deps]
+FrontIntrinsicOps = "e6c86744-7a11-4de8-9742-25481e5aebbf"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
+FrontIntrinsicOps = "0.1.0"
+StaticArrays = "1"
 julia = "1"
 
 [extras]
