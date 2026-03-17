@@ -1,9 +1,7 @@
 # FrontTrackingMethods.jl
 
 A Julia package for evolving explicit front-tracking meshes in time.
-Mirrors the spirit and user workflow of
-[LevelSetMethods.jl](https://github.com/maltezfaria/LevelSetMethods.jl)
-but operates on Lagrangian polygonal curves and triangulated surfaces
+Operates on Lagrangian polygonal curves and triangulated surfaces
 built on top of [FrontIntrinsicOps.jl](https://github.com/PenguinxCutCell/FrontIntrinsicOps.jl).
 
 ## Quick start
