@@ -92,8 +92,8 @@ in `src/benchmark_geometries.jl` and `src/benchmark_fields.jl`:
 | Zalesak sphere | 3-D | `rigid_rotation_3d` | volume drift + qualitative slot |
 | Enright deformation | 3-D | `enright_3d` | volume drift, mesh quality |
 
-Examples are in the `examples/` directory.  Long convergence scripts are in
-`benchmarks/`.
+Examples are in the `examples/` directory.  Advection benchmark drivers and
+error scripts are in `benchmark/` (`julia --project=. benchmark/run_all.jl`).
 
 ## What is now strong / still experimental / missing
 
