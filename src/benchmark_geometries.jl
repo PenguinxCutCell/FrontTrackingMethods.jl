@@ -1,12 +1,13 @@
 # benchmark_geometries.jl – Reusable benchmark geometry constructors.
 #
-# Provides closed polygonal curves and triangulated surfaces for standard
-# front-tracking benchmarks.  Every constructor returns a mesh ready to use
-# with FrontEquation.
+# Provides closed polygonal curves, selected open curves, and triangulated
+# surfaces for standard front-tracking benchmarks. Every constructor returns
+# a mesh ready to use with FrontEquation.
 #
 # 2-D constructors
 # ----------------
 #   make_circle_benchmark_curve      – circle for translation/rotation tests
+#   make_open_arc_benchmark_curve    – open circular arc for advection tests
 #   make_zalesak_disk_curve          – slotted disk (Zalesak 1979)
 #
 # 3-D constructors
@@ -37,6 +38,47 @@ function make_circle_benchmark_curve(;
     T = Float64
     pts   = [center + SVector{2,T}(R*cos(2T(π)*k/N), R*sin(2T(π)*k/N)) for k in 0:N-1]
     edges = [SVector{2,Int}(k, mod1(k+1, N)) for k in 1:N]
+    return CurveMesh{T}(pts, edges)
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2-D: open arc benchmark curve
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    make_open_arc_benchmark_curve(;
+        center=SVector(0.5, 0.5),
+        R=0.2,
+        θ_start=π/6,
+        θ_end=5π/6,
+        N=128,
+    ) -> CurveMesh{Float64}
+
+Create an open polygonal approximation of a circular arc for open-front tests.
+
+The arc is centered at `center`, has radius `R`, starts at angle `θ_start`,
+ends at angle `θ_end`, and contains `N` vertices connected by `N-1` edges.
+
+This constructor is intended for open-front topology/geometry checks and
+prescribed-advection benchmarks. It does not enclose area.
+"""
+function make_open_arc_benchmark_curve(;
+    center  :: SVector{2,Float64} = SVector(0.5, 0.5),
+    R       :: Float64            = 0.2,
+    θ_start :: Float64            = Float64(π / 6),
+    θ_end   :: Float64            = Float64(5π / 6),
+    N       :: Int                = 128,
+) :: CurveMesh{Float64}
+    T = Float64
+
+    R > 0 || throw(ArgumentError("R must be > 0, got R=$R"))
+    N >= 2 || throw(ArgumentError("N must be at least 2, got N=$N"))
+    abs(θ_end - θ_start) > eps(T) ||
+        throw(ArgumentError("θ_start and θ_end must define a nonzero arc."))
+
+    angles = range(T(θ_start), T(θ_end), length=N)
+    pts = [center + SVector{2,T}(R * cos(θ), R * sin(θ)) for θ in angles]
+    edges = [SVector{2,Int}(k, k + 1) for k in 1:N-1]
     return CurveMesh{T}(pts, edges)
 end
 

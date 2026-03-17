@@ -8,6 +8,7 @@ polygonal curves and triangulated surfaces built on top of `FrontIntrinsicOps.jl
 
 v0.2 supports:
 - Closed 2-D polygonal curves (`CurveMesh`) and closed 3-D surfaces (`SurfaceMesh`).
+- Limited open 2-D curve support for topology/geometry and prescribed-advection cases.
 - Prescribed vector advection (`AdvectionTerm`), prescribed normal motion
   (`NormalMotionTerm`), and curvature-driven motion (`CurvatureMotionTerm`).
 - Fixed-connectivity vertex motion (no topology change).
@@ -18,8 +19,8 @@ v0.2 supports:
   `ExperimentalSurfaceRemesher`).
 - Piecewise-linear field transfer on curves.
 - Barycentric field transfer on surfaces (`transfer_vertex_field!` with `:barycentric`).
-- Standard benchmark geometries (`make_circle_benchmark_curve`, `make_zalesak_disk_curve`,
-  `make_sphere_benchmark_surface`, `make_zalesak_sphere_surface`).
+- Standard benchmark geometries (`make_circle_benchmark_curve`, `make_open_arc_benchmark_curve`,
+  `make_zalesak_disk_curve`, `make_sphere_benchmark_surface`, `make_zalesak_sphere_surface`).
 - Standard benchmark velocity fields (`rigid_translation_velocity`,
   `rigid_rotation_2d`, `rigid_rotation_3d`, `rider_kothe_single_vortex`,
   `deformation16_2d`, `serpentine_2d`, `enright_3d`).
@@ -122,6 +123,7 @@ export
 
     # Benchmark geometry constructors (v0.2)
     make_circle_benchmark_curve,
+    make_open_arc_benchmark_curve,
     make_zalesak_disk_curve,
     make_sphere_benchmark_surface,
     make_zalesak_sphere_surface,
