@@ -6,15 +6,25 @@ A package for evolving explicit front-tracking meshes in time.
 Mirrors the user workflow of `LevelSetMethods.jl`, but operates on Lagrangian
 polygonal curves and triangulated surfaces built on top of `FrontIntrinsicOps.jl`.
 
-v0.1 supports:
+v0.2 supports:
 - Closed 2-D polygonal curves (`CurveMesh`) and closed 3-D surfaces (`SurfaceMesh`).
 - Prescribed vector advection (`AdvectionTerm`), prescribed normal motion
   (`NormalMotionTerm`), and curvature-driven motion (`CurvatureMotionTerm`).
-- Fixed-connectivity vertex motion (no remeshing).
+- Fixed-connectivity vertex motion (no topology change).
 - Forward-Euler, RK2, and RK3 time integrators.
 - Equal-arclength redistribution on curves (`CurveEqualArcRedistributor`).
-- Experimental tangential redistribution on surfaces (`SurfaceTangentialRedistributor`).
+- Adaptive tangential curve remeshing with corner protection (`AdaptiveCurveRemesher`).
+- Experimental tangential redistribution on surfaces (`SurfaceTangentialRedistributor`,
+  `ExperimentalSurfaceRemesher`).
 - Piecewise-linear field transfer on curves.
+- Barycentric field transfer on surfaces (`transfer_vertex_field!` with `:barycentric`).
+- Standard benchmark geometries (`make_circle_benchmark_curve`, `make_zalesak_disk_curve`,
+  `make_sphere_benchmark_surface`, `make_zalesak_sphere_surface`).
+- Standard benchmark velocity fields (`rigid_translation_velocity`,
+  `rigid_rotation_2d`, `rigid_rotation_3d`, `rider_kothe_single_vortex`,
+  `deformation16_2d`, `serpentine_2d`, `enright_3d`).
+- Front-to-front comparison metrics (Hausdorff, L², area/volume errors).
+- Lightweight callbacks (`EveryNSteps`, `TimeIntervalCallback`).
 
 See also: `FrontIntrinsicOps` for static geometry and DEC operators.
 """
@@ -49,9 +59,14 @@ include("geometry_refresh.jl")
 include("frontterms.jl")
 include("timestepping.jl")
 include("redistribution.jl")
+include("remeshing.jl")
 include("transfer.jl")
 include("frontequation.jl")
 include("diagnostics.jl")
+include("benchmark_geometries.jl")
+include("benchmark_fields.jl")
+include("compare_fronts.jl")
+include("callbacks.jl")
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -69,6 +84,10 @@ export
     NoRedistribution,
     CurveEqualArcRedistributor,
     SurfaceTangentialRedistributor,
+    AdaptiveCurveRemesher,
+    ExperimentalSurfaceRemesher,
+    EveryNSteps,
+    TimeIntervalCallback,
 
     # Core functions
     integrate!,
@@ -76,6 +95,7 @@ export
     current_time,
     refresh_geometry!,
     redistribute!,
+    remesh!,
     repair_front!,
     transfer_vertex_field!,
     transfer_fields!,
@@ -97,6 +117,37 @@ export
     front_centroid,
     front_spacing,
     check_front_validity,
-    normal_tangential_decomposition
+    normal_tangential_decomposition,
+
+    # Benchmark geometry constructors (v0.2)
+    make_circle_benchmark_curve,
+    make_zalesak_disk_curve,
+    make_sphere_benchmark_surface,
+    make_zalesak_sphere_surface,
+
+    # Benchmark velocity fields (v0.2)
+    rigid_translation_velocity,
+    rigid_rotation_2d,
+    rigid_rotation_3d,
+    rider_kothe_single_vortex,
+    deformation16_2d,
+    serpentine_2d,
+    enright_3d,
+
+    # Front comparison metrics (v0.2)
+    nearest_distance_curve_to_curve,
+    symmetric_hausdorff_curve,
+    l2_distance_curve,
+    nearest_distance_surface_to_surface,
+    symmetric_hausdorff_surface,
+    l2_distance_surface,
+    relative_area_error,
+    relative_volume_error,
+    centroid_error,
+    perimeter_error,
+    surface_area_error,
+
+    # Callbacks (v0.2)
+    compose_callbacks
 
 end # module FrontTrackingMethods
