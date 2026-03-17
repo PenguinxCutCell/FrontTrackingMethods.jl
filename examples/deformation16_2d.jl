@@ -11,6 +11,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 T     = 2.0
 dt    = 0.02
@@ -56,3 +59,18 @@ run_and_report("Equal-arclength",    CurveEqualArcRedistributor())
 run_and_report("Adaptive remesher",  AdaptiveCurveRemesher(; iterations=10))
 
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("deformation16_2d")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = AdaptiveCurveRemesher(; iterations=10),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="deformation16: initial")
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T, 160);
+    title="deformation16")
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="deformation16: final")
+println("Saved plotting outputs to: $outdir")

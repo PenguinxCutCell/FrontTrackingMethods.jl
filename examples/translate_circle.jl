@@ -1,5 +1,8 @@
 # translate_circle.jl – Constant advection of a circle.
 using FrontIntrinsicOps, FrontTrackingMethods, StaticArrays, LinearAlgebra
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # Setup
 N  = 64;  R = 1.0
@@ -16,3 +19,13 @@ pts_final = eq.state.mesh.points
 c = sum(pts_final) / N
 println("t = 1.0  centroid = ", round.(c, digits=4), "  exact = (1.0, 0.5)")
 println("Area drift = ", abs(front_enclosed_measure(eq.state) - π*R^2) / (π*R^2))
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("translate_circle")
+
+eq_anim = FrontEquation(; terms=(AdvectionTerm(u_adv),), front=deepcopy(mesh), integrator=RK2())
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="translate_circle: initial", show_vertices=true)
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(1.0, 120);
+	title="translate_circle", show_vertices=false)
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="translate_circle: final", show_vertices=true)
+println("Saved plotting outputs to: $outdir")

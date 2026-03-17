@@ -21,6 +21,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # ─── Parameters ──────────────────────────────────────────────────────────────
 center_disk = SVector(0.5, 0.75)
@@ -72,3 +75,18 @@ println("\nFinal diagnostics (after one full revolution):")
 @printf "  Hausdorff to init: %.4e\n" dH
 @printf "  Edge lengths:  min=%.4e  max=%.4e\n" minimum(ls) maximum(ls)
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("zalesak_disk_rotation")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = CurveEqualArcRedistributor(; every=5),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="zalesak: initial")
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T_rev, 160);
+    title="zalesak")
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="zalesak: final")
+println("Saved plotting outputs to: $outdir")

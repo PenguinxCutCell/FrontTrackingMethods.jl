@@ -20,6 +20,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # ─── Parameters ──────────────────────────────────────────────────────────────
 Tmax  = 3.0
@@ -69,3 +72,18 @@ if !isempty(min_edge_history)
     @printf "  Min edge (min over time): %.4e\n" minimum(min_edge_history)
 end
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("serpentine_2d")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = AdaptiveCurveRemesher(; iterations=5, protect_corners=false),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="serpentine: initial")
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(Tmax, 180);
+    title="serpentine")
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="serpentine: final")
+println("Saved plotting outputs to: $outdir")

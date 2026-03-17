@@ -57,14 +57,14 @@ end
 Construct the Zalesak slotted-disk curve (Zalesak 1979).
 
 The disk is a circle of radius `R` centered at `center` with a rectangular
-slot of width `slot_width` and depth `slot_depth` cut from the bottom.
+notch of width `slot_width` and depth `slot_depth` cut from the top.
 
 The curve is a closed polygon traversing:
-1. The arc of the circle from the right slot edge to the left slot edge
-   (going counter-clockwise, i.e., most of the circle).
-2. The right side of the slot (downward).
-3. The bottom of the slot (left).
-4. The left side of the slot (upward back to the circle).
+1. The outer arc from the left notch lip to the right notch lip
+    (going counter-clockwise along most of the circle).
+2. The right side of the notch (downward).
+3. The notch bottom (left).
+4. The left side of the notch (upward back to the circle).
 
 Orientation is counter-clockwise (positive enclosed area).
 
@@ -85,68 +85,80 @@ function make_zalesak_disk_curve(;
 
     T  = Float64
     cx, cy = center[1], center[2]
-    hw = slot_width / 2  # half slot width
+    hw = slot_width / 2
 
-    # Slot edge x-coordinates
+    if !(R > 0)
+        throw(ArgumentError("R must be > 0, got R=$R"))
+    end
+    if !(slot_width > 0)
+        throw(ArgumentError("slot_width must be > 0, got slot_width=$slot_width"))
+    end
+    if !(slot_depth > 0)
+        throw(ArgumentError("slot_depth must be > 0, got slot_depth=$slot_depth"))
+    end
+    if !(slot_width < 2R)
+        throw(ArgumentError("slot_width must be < 2R for a valid notch (slot_width=$slot_width, 2R=$(2R))"))
+    end
+    if N_arc < 8
+        throw(ArgumentError("N_arc must be at least 8, got N_arc=$N_arc"))
+    end
+    if N_slot < 2
+        throw(ArgumentError("N_slot must be at least 2, got N_slot=$N_slot"))
+    end
+
     x_right = cx + hw
     x_left  = cx - hw
 
-    # Angles where the slot meets the circle
-    # The slot runs from x_right and x_left at the bottom of the circle
-    # (i.e., the bottom chord of the disk).
-    # angle_right is the angle at x_right on the circle (below center)
-    # angle_left  is the angle at x_left  on the circle (below center)
-    # clamp to handle near-tangent cases
-    sin_right = clamp(hw / R, -one(T), one(T))
-    angle_right = -asin(sin_right)   # in [-π/2, 0], on the right
-    angle_left  =  T(π) + asin(sin_right)  # > π, on the left going CCW
+    y_lip_offset = sqrt(max(R^2 - hw^2, zero(T)))
+    y_lip = cy + y_lip_offset
+    y_bottom_min = cy - R + eps(T)
+    y_notch_bottom = max(y_lip - slot_depth, y_bottom_min)
 
-    # Build the circular arc going CCW from angle_right to angle_left
-    # (i.e., from the right slot edge all the way around the top, to the left edge)
-    arc_span = mod(angle_left - angle_right, 2T(π))
-    arc_span < eps(T) && (arc_span = 2T(π))
+    θ_left  = atan(y_lip - cy, x_left - cx)
+    θ_right = atan(y_lip - cy, x_right - cx)
 
+    arc_span = mod(θ_right - θ_left, 2T(π))
     arc_pts = SVector{2,T}[]
     for k in 0:N_arc-1
-        θ = angle_right + arc_span * k / N_arc
+        θ = θ_left + arc_span * k / N_arc
         push!(arc_pts, SVector{2,T}(cx + R*cos(θ), cy + R*sin(θ)))
     end
 
-    # Slot geometry:
-    # - Right slot top: circle at angle_right → (x_right, cy + R*sin(angle_right))
-    # - Right slot bottom: (x_right, cy + R*sin(angle_right) - slot_depth)
-    # - Left  slot bottom: (x_left,  cy + R*sin(angle_right) - slot_depth)
-    # - Left  slot top:   (x_left,  cy + R*sin(angle_left_on_bottom))
-    #   (= cy + R*sin(angle_right) since symmetric)
-    y_slot_top    = cy + R * sin(angle_right)
-    y_slot_bottom = y_slot_top - slot_depth
-
-    # Right side of slot (going down): from arc endpoint to slot bottom-right
+    right_lip = SVector{2,T}(x_right, y_lip)
     slot_right_pts = SVector{2,T}[]
     for k in 1:N_slot
         frac = k / N_slot
-        y    = y_slot_top + frac * (y_slot_bottom - y_slot_top)
+        y = y_lip + frac * (y_notch_bottom - y_lip)
         push!(slot_right_pts, SVector{2,T}(x_right, y))
     end
 
-    # Bottom of slot (going left): from bottom-right to bottom-left
     slot_bottom_pts = SVector{2,T}[]
     for k in 1:N_slot
         frac = k / N_slot
-        x    = x_right + frac * (x_left - x_right)
-        push!(slot_bottom_pts, SVector{2,T}(x, y_slot_bottom))
+        x = x_right + frac * (x_left - x_right)
+        push!(slot_bottom_pts, SVector{2,T}(x, y_notch_bottom))
     end
 
-    # Left side of slot (going up): from bottom-left back to arc
     slot_left_pts = SVector{2,T}[]
-    for k in 1:N_slot-1   # skip last to avoid duplicating arc start
+    for k in 1:N_slot-1
         frac = k / N_slot
-        y    = y_slot_bottom + frac * (y_slot_top - y_slot_bottom)
+        y = y_notch_bottom + frac * (y_lip - y_notch_bottom)
         push!(slot_left_pts, SVector{2,T}(x_left, y))
     end
 
-    # Assemble all points
-    all_pts = vcat(arc_pts, slot_right_pts, slot_bottom_pts, slot_left_pts)
+    all_pts = vcat(arc_pts, [right_lip], slot_right_pts, slot_bottom_pts, slot_left_pts)
+
+    signed_area2 = zero(T)
+    M = length(all_pts)
+    for k in 1:M
+        p = all_pts[k]
+        q = all_pts[mod1(k + 1, M)]
+        signed_area2 += p[1] * q[2] - q[1] * p[2]
+    end
+    if signed_area2 < 0
+        reverse!(all_pts)
+    end
+
     N       = length(all_pts)
     edges   = [SVector{2,Int}(k, mod1(k+1, N)) for k in 1:N]
     return CurveMesh{T}(all_pts, edges)

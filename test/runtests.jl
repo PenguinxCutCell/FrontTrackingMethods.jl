@@ -256,5 +256,11 @@ include("test_benchmark_vortex_2d.jl")
 include("test_benchmark_serpentine_2d.jl")
 include("test_benchmark_enright_3d.jl")
 
+if Base.find_package("Makie") !== nothing && Base.find_package("CairoMakie") !== nothing
+    include("test_makie_ext.jl")
+else
+    @info "Skipping Makie extension tests (Makie/CairoMakie not available in test env)."
+end
+
 println("All FrontTrackingMethods tests passed.")
 

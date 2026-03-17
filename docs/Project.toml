@@ -1,0 +1,5 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+FrontTrackingMethods = "c7b9f8e7-6a5b-4c3d-9f01-23456789abcd"
+LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"

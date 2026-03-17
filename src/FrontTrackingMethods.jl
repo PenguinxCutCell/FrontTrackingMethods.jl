@@ -67,6 +67,7 @@ include("benchmark_geometries.jl")
 include("benchmark_fields.jl")
 include("compare_fronts.jl")
 include("callbacks.jl")
+include("plotting_stubs.jl")
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,16 @@ export
     surface_area_error,
 
     # Callbacks (v0.2)
-    compose_callbacks
+    compose_callbacks,
+
+    # Optional Makie plotting API (implemented in ext/MakieExt.jl)
+    makie_theme,
+    set_makie_theme!,
+    plot_front,
+    plot_state,
+    plot_equation,
+    animate_equation!,
+    record_evolution!,
+    snapshot
 
 end # module FrontTrackingMethods

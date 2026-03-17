@@ -24,6 +24,9 @@ using FrontIntrinsicOps
 using StaticArrays
 using LinearAlgebra
 using Printf
+using CairoMakie
+include("example_utils.jl")
+using .ExampleUtils
 
 # ─── Parameters ──────────────────────────────────────────────────────────────
 T     = 2.0
@@ -69,3 +72,18 @@ run_and_report("B. Equal-arclength",          CurveEqualArcRedistributor())
 run_and_report("C. Adaptive remesher",        AdaptiveCurveRemesher(; iterations=5))
 
 println("\nDone.")
+
+FrontTrackingMethods.set_makie_theme!()
+outdir = ExampleUtils.output_dir_for("rider_kothe_single_vortex")
+
+eq_anim = FrontEquation(;
+    terms        = AdvectionTerm(u),
+    front        = deepcopy(mesh0),
+    integrator   = RK2(),
+    redistributor = AdaptiveCurveRemesher(; iterations=5),
+)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="rider-kothe: initial")
+record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T, 180);
+    title="rider-kothe")
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="rider-kothe: final")
+println("Saved plotting outputs to: $outdir")
