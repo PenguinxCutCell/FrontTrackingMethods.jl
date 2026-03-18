@@ -30,7 +30,7 @@ Builds a `FrontState` from a `CurveMesh` or `SurfaceMesh`.
 If `build_dec=true`, the DEC operators are assembled (required for
 `CurvatureMotionTerm` on surfaces).
 """
-mutable struct FrontState{M,G,D} <: AbstractFrontState
+mutable struct FrontState{M,G,D}
     mesh   :: M
     geom   :: G
     dec    :: D
@@ -80,14 +80,12 @@ Return the current simulation time.
 """
 current_time(state::FrontState) = state.t
 
-
 """
     vertex_coordinates(state::FrontState) -> Vector{SVector}
 
 Return a copy of the current vertex coordinate array.
 """
 vertex_coordinates(state::FrontState) = copy(state.mesh.points)
-
 
 """
     set_vertex_coordinates!(state::FrontState, new_points)
@@ -120,7 +118,6 @@ function add_field!(state::FrontState, name::Symbol, field)
     return state
 end
 
-
 """
     get_field(state::FrontState, name::Symbol) -> FrontField
 
@@ -131,7 +128,6 @@ function get_field(state::FrontState, name::Symbol)
         error("FrontState: no field named $(repr(name)).")
     return state.fields[name]
 end
-
 
 # ── show ──────────────────────────────────────────────────────────────────────
 

@@ -20,12 +20,6 @@ function front_spacing(state::FrontState)
     return max(h, eps(eltype(lengths)))
 end
 
-function front_spacing(state::MultiFrontState)
-    ncomponents(state) > 0 || return 1.0
-    h = minimum(front_spacing(_component_front_state(comp, state.t)) for comp in eachcomponent(state))
-    return max(h, eps(Float64))
-end
-
 """
     _zeros_like_points(mesh) -> Vector{SVector}
 

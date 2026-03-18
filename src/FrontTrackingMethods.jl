@@ -55,7 +55,6 @@ const enclosed_measure = FrontIntrinsicOps.enclosed_measure
 include("front_types.jl")
 include("frontfield.jl")
 include("frontstate.jl")
-include("topology_state.jl")
 include("utils.jl")
 include("geometry_refresh.jl")
 include("frontterms.jl")
@@ -63,13 +62,6 @@ include("timestepping.jl")
 include("redistribution.jl")
 include("remeshing.jl")
 include("transfer.jl")
-include("topology_change.jl")
-include("topology_detection.jl")
-include("topology_patch.jl")
-include("topology_rasterize.jl")
-include("topology_reconstruct.jl")
-include("topology_replace.jl")
-include("topology_transfer.jl")
 include("frontequation.jl")
 include("diagnostics.jl")
 include("benchmark_geometries.jl")
@@ -82,11 +74,8 @@ include("plotting_stubs.jl")
 
 export
     # Types
-    AbstractFrontState,
     FrontField,
     FrontState,
-    FrontComponentState,
-    MultiFrontState,
     FrontEquation,
     AdvectionTerm,
     NormalMotionTerm,
@@ -99,13 +88,6 @@ export
     SurfaceTangentialRedistributor,
     AdaptiveCurveRemesher,
     ExperimentalSurfaceRemesher,
-    AbstractTopologyHandler,
-    NoTopologyChange,
-    LocalCartesianTopologyHandler,
-    TopologyEventReport,
-    TopologyCandidate,
-    EventPatch,
-    CartesianPatch,
     EveryNSteps,
     TimeIntervalCallback,
 
@@ -113,14 +95,6 @@ export
     integrate!,
     current_state,
     current_time,
-    ncomponents,
-    component,
-    component_mesh,
-    component_geom,
-    component_fields,
-    all_meshes,
-    eachcomponent,
-    map_components,
     refresh_geometry!,
     redistribute!,
     remesh!,
@@ -132,25 +106,6 @@ export
     get_field,
     vertex_coordinates,
     set_vertex_coordinates!,
-    handle_topology_change!,
-    find_topology_candidates,
-    select_topology_candidate,
-    extract_event_patch,
-    make_patch_grid,
-    patch_cell_centers,
-    rasterize_indicator!,
-    reconstruct_curve_from_patch,
-    reconstruct_surface_from_patch,
-    replace_components!,
-    replace_curve_patch!,
-    transfer_fields_after_topology_change!,
-    local_length_scale,
-    detect_imminent_merge_2d,
-    detect_imminent_self_merge_2d,
-    detect_imminent_split_2d,
-    detect_imminent_merge_3d,
-    detect_imminent_self_merge_3d,
-    detect_imminent_split_3d,
     location,
     mesh,
 
@@ -179,11 +134,6 @@ export
     make_zalesak_disk_curve,
     make_sphere_benchmark_surface,
     make_zalesak_sphere_surface,
-    make_two_circles_merge_setup,
-    make_dumbbell_curve_setup,
-    make_peanut_curve_setup,
-    make_two_spheres_merge_setup,
-    make_dumbbell_surface_setup,
 
     # Benchmark velocity fields (v0.2)
     rigid_translation_velocity,

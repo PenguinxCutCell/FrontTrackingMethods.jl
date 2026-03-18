@@ -12,8 +12,6 @@ function min_edge_length(state::FrontState)
     return minimum(state.geom.edge_lengths)
 end
 
-min_edge_length(state::MultiFrontState) = [min_edge_length(_component_front_state(comp, state.t)) for comp in eachcomponent(state)]
-
 """
     max_edge_length(state::FrontState) -> Float64
 
@@ -22,8 +20,6 @@ Return the length of the longest edge in the current front mesh.
 function max_edge_length(state::FrontState)
     return maximum(state.geom.edge_lengths)
 end
-
-max_edge_length(state::MultiFrontState) = [max_edge_length(_component_front_state(comp, state.t)) for comp in eachcomponent(state)]
 
 """
     mean_edge_length(state::FrontState) -> Float64
@@ -35,8 +31,6 @@ function mean_edge_length(state::FrontState)
     return sum(ls) / length(ls)
 end
 
-mean_edge_length(state::MultiFrontState) = [mean_edge_length(_component_front_state(comp, state.t)) for comp in eachcomponent(state)]
-
 """
     edge_length_spread(state::FrontState) -> Float64
 
@@ -47,8 +41,6 @@ function edge_length_spread(state::FrontState)
     ls = state.geom.edge_lengths
     return maximum(ls) / max(minimum(ls), eps(eltype(ls)))
 end
-
-edge_length_spread(state::MultiFrontState) = [edge_length_spread(_component_front_state(comp, state.t)) for comp in eachcomponent(state)]
 
 """
     front_enclosed_measure(state::FrontState) -> Float64
@@ -63,8 +55,6 @@ function front_enclosed_measure(state::FrontState)
     return enclosed_measure(state.mesh)
 end
 
-front_enclosed_measure(state::MultiFrontState) = sum(front_enclosed_measure(_component_front_state(comp, state.t)) for comp in eachcomponent(state))
-
 """
     front_measure(state::FrontState) -> Float64
 
@@ -75,8 +65,6 @@ function front_measure(state::FrontState)
     return measure(state.mesh, state.geom)
 end
 
-front_measure(state::MultiFrontState) = sum(front_measure(_component_front_state(comp, state.t)) for comp in eachcomponent(state))
-
 """
     front_centroid(state::FrontState) -> SVector
 
@@ -86,12 +74,6 @@ positions).
 function front_centroid(state::FrontState)
     pts = state.mesh.points
     isempty(pts) && error("front_centroid: empty mesh.")
-    return sum(pts) / length(pts)
-end
-
-function front_centroid(state::MultiFrontState)
-    ncomponents(state) > 0 || error("front_centroid: empty MultiFrontState.")
-    pts = reduce(vcat, [comp.mesh.points for comp in eachcomponent(state)])
     return sum(pts) / length(pts)
 end
 

@@ -40,8 +40,7 @@ where `front` is a `CurveMesh`, `SurfaceMesh`, or an existing `FrontState`.
 mutable struct FrontEquation
     terms         :: Tuple
     integrator    :: TimeIntegrator
-    state         :: AbstractFrontState
-    topology_handler
+    state         :: FrontState
     redistributor
     transfer
     step          :: Int
@@ -50,11 +49,9 @@ end
 
 function FrontEquation(;
     terms,
-    front                           = nothing,
-    state                           = nothing,
+    front,
     t        :: Real                = 0.0,
     integrator :: TimeIntegrator    = RK2(),
-    topology_handler                = NoTopologyChange(),
     redistributor                   = nothing,
     transfer                        = nothing,
     fields                          = nothing,
@@ -70,51 +67,27 @@ function FrontEquation(;
         error("FrontEquation: all entries in `terms` must be AbstractFrontTerm.")
 
     # Build state
-    (state === nothing || front === nothing) ||
-        error("FrontEquation: provide either `front` or `state`, not both.")
-
-    built_state = if state !== nothing
-        state isa AbstractFrontState ||
-            error("FrontEquation: `state` must be a FrontState or MultiFrontState.")
-        state.t = Float64(t)
-        state
-    elseif front isa FrontState || front isa MultiFrontState
+    state = if front isa FrontState
         front.t = Float64(t)
         front
     elseif front isa CurveMesh || front isa SurfaceMesh
         st = FrontState(front; t=t, build_dec=build_dec)
+        # attach user-provided fields
         if fields !== nothing
             for (name, fld) in pairs(fields)
                 add_field!(st, Symbol(name), fld)
             end
         end
         st
-    elseif front isa AbstractVector{<:Union{CurveMesh,SurfaceMesh}}
-        mst = MultiFrontState(front; t=t, build_dec=build_dec)
-        if fields !== nothing
-            for (name, fld) in pairs(fields)
-                mst.global_fields[Symbol(name)] = fld
-            end
-        end
-        mst
     else
-        error("FrontEquation: `front` must be mesh/mesh-vector/state or provide `state=`.")
-    end
-
-    if !(topology_handler isa NoTopologyChange) && built_state isa FrontState
-        built_state = MultiFrontState(built_state)
+        error("FrontEquation: `front` must be a CurveMesh, SurfaceMesh, or FrontState.")
     end
 
     # Preallocate velocity buffer
-    buffers = if built_state isa FrontState
-        (vel = _zeros_like_points(built_state.mesh), vel_components = Vector{Any}())
-    else
-        vc = [_zeros_like_points(comp.mesh) for comp in eachcomponent(built_state)]
-        (vel = nothing, vel_components = vc)
-    end
+    vel_buf = _zeros_like_points(state.mesh)
+    buffers = (vel = vel_buf,)
 
-    return FrontEquation(terms, integrator, built_state, topology_handler,
-                         redistributor, transfer, 0, buffers)
+    return FrontEquation(terms, integrator, state, redistributor, transfer, 0, buffers)
 end
 
 # ── Accessors ─────────────────────────────────────────────────────────────────
@@ -159,21 +132,6 @@ function _get_vel_buf(eq::FrontEquation, state::FrontState)
     end
 end
 
-function _get_vel_buf(eq::FrontEquation, state::MultiFrontState, i::Int)
-    bufs = eq.buffers.vel_components
-    if length(bufs) < i
-        resize!(bufs, i)
-        bufs[i] = _zeros_like_points(component_mesh(state, i))
-        eq.buffers = (vel = eq.buffers.vel, vel_components = bufs)
-    end
-    buf = bufs[i]
-    if length(buf) != length(component_mesh(state, i).points)
-        bufs[i] = _zeros_like_points(component_mesh(state, i))
-        eq.buffers = (vel = eq.buffers.vel, vel_components = bufs)
-    end
-    return eq.buffers.vel_components[i]
-end
-
 # Advance the state's vertex coordinates by dt * V, refresh geometry.
 function _apply_velocity!(state::FrontState, x0, V, dt::Real)
     new_pts = _advance_coordinates(state.mesh, x0, V, dt)
@@ -187,18 +145,6 @@ function _step_fe!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float64
     x0 = vertex_coordinates(state)
     compute_rhs!(V, eq.terms, state, t)
     _apply_velocity!(state, x0, V, dt)
-end
-
-function _step_fe!(eq::FrontEquation, state::MultiFrontState, t::Float64, dt::Float64)
-    for (i, comp) in enumerate(eachcomponent(state))
-        cstate = _component_front_state(comp, t)
-        V  = _get_vel_buf(eq, state, i)
-        x0 = vertex_coordinates(cstate)
-        compute_rhs!(V, eq.terms, cstate, t)
-        _apply_velocity!(cstate, x0, V, dt)
-        _sync_component_from_state!(comp, cstate)
-    end
-    return state
 end
 
 function _step_rk2!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float64)
@@ -224,30 +170,6 @@ function _step_rk2!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
     new_pts = [x0[a] + T(dt)/2 * (k1[a] + k2[a]) for a in eachindex(x0)]
     state.mesh = _replace_mesh(state.mesh, new_pts)
     refresh_geometry!(state)
-end
-
-function _step_rk2!(eq::FrontEquation, state::MultiFrontState, t::Float64, dt::Float64)
-    for (i, comp) in enumerate(eachcomponent(state))
-        cstate = _component_front_state(comp, t)
-        V   = _get_vel_buf(eq, state, i)
-        x0  = vertex_coordinates(cstate)
-
-        compute_rhs!(V, eq.terms, cstate, t)
-        k1 = copy(V)
-
-        _apply_velocity!(cstate, x0, k1, dt)
-
-        compute_rhs!(V, eq.terms, cstate, t + dt)
-        k2 = copy(V)
-
-        T = eltype(eltype(x0))
-        new_pts = [x0[a] + T(dt)/2 * (k1[a] + k2[a]) for a in eachindex(x0)]
-        cstate.mesh = _replace_mesh(cstate.mesh, new_pts)
-        refresh_geometry!(cstate)
-
-        _sync_component_from_state!(comp, cstate)
-    end
-    return state
 end
 
 function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float64)
@@ -284,82 +206,6 @@ function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
                for a in eachindex(x0)]
     state.mesh = _replace_mesh(state.mesh, new_pts)
     refresh_geometry!(state)
-end
-
-function _step_rk3!(eq::FrontEquation, state::MultiFrontState, t::Float64, dt::Float64)
-    for (i, comp) in enumerate(eachcomponent(state))
-        cstate = _component_front_state(comp, t)
-        V  = _get_vel_buf(eq, state, i)
-        x0 = vertex_coordinates(cstate)
-        T  = eltype(eltype(x0))
-        dt_T = T(dt)
-
-        compute_rhs!(V, eq.terms, cstate, t)
-        k1 = copy(V)
-
-        _apply_velocity!(cstate, x0, k1, dt)
-        x1 = vertex_coordinates(cstate)
-
-        compute_rhs!(V, eq.terms, cstate, t + dt)
-        k2 = copy(V)
-
-        new_pts2 = [T(3)/4 * x0[a] + T(1)/4 * x1[a] + T(1)/4 * dt_T * k2[a]
-                    for a in eachindex(x0)]
-        cstate.mesh = _replace_mesh(cstate.mesh, new_pts2)
-        refresh_geometry!(cstate)
-
-        compute_rhs!(V, eq.terms, cstate, t + dt/2)
-        k3 = copy(V)
-
-        x2 = vertex_coordinates(cstate)
-        new_pts = [T(1)/3 * x0[a] + T(2)/3 * x2[a] + T(2)/3 * dt_T * k3[a]
-                   for a in eachindex(x0)]
-        cstate.mesh = _replace_mesh(cstate.mesh, new_pts)
-        refresh_geometry!(cstate)
-
-        _sync_component_from_state!(comp, cstate)
-    end
-    return state
-end
-
-function _compute_cfl(eq::FrontEquation, state::FrontState, t::Float64)
-    return compute_cfl(eq.terms, state, t)
-end
-
-function _compute_cfl(eq::FrontEquation, state::MultiFrontState, t::Float64)
-    ncomponents(state) > 0 || return Inf
-    return minimum(compute_cfl(eq.terms, _component_front_state(comp, t), t) for comp in eachcomponent(state))
-end
-
-function _maybe_redistribute!(eq::FrontEquation, state::FrontState)
-    if eq.redistributor !== nothing
-        redistribute!(state, eq.redistributor)
-    end
-    return state
-end
-
-function _maybe_redistribute!(eq::FrontEquation, state::MultiFrontState)
-    if eq.redistributor !== nothing
-        for comp in eachcomponent(state)
-            cstate = _component_front_state(comp, state.t)
-            redistribute!(cstate, eq.redistributor)
-            _sync_component_from_state!(comp, cstate)
-        end
-    end
-    return state
-end
-
-function _handle_topology_stage!(eq::FrontEquation, state::AbstractFrontState)
-    report = handle_topology_change!(state, eq.topology_handler)
-    state.cache[:last_topology_report] = report
-    if report.changed
-        if state isa FrontState
-            refresh_geometry!(state)
-        else
-            refresh_geometry!(state; which=:all)
-        end
-    end
-    return report
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -405,7 +251,7 @@ function integrate!(
         dt_use = if dt !== nothing
             Float64(dt)
         else
-            dt_cfl = _compute_cfl(eq, state, t)
+            dt_cfl = compute_cfl(eq.terms, state, t)
             dt_cfl * cfl(eq.integrator)
         end
         # Clamp to not overshoot tf
@@ -428,11 +274,10 @@ function integrate!(
         state.t = t
         step   += 1
 
-        # ── topology change stage ──────────────────────────────────────────
-        _handle_topology_stage!(eq, state)
-
         # ── optional redistribution ─────────────────────────────────────────
-        _maybe_redistribute!(eq, state)
+        if eq.redistributor !== nothing
+            redistribute!(state, eq.redistributor)
+        end
 
         # ── callback ────────────────────────────────────────────────────────
         callback !== nothing && callback(state, t, step)

@@ -16,7 +16,6 @@ examples, and focused pages on benchmarks, diagnostics, and remeshing.
 - [Benchmarks](benchmarks.md)
 - [Diagnostics](diagnostics.md)
 - [Redistribution & Remeshing](remeshing.md)
-- [Topology change (v0.3)](topology_change.md)
 
 For more details, see the repository README and the inline docstrings in
 `src/`.
