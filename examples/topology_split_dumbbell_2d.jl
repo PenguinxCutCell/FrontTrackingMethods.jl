@@ -1,0 +1,52 @@
+using FrontTrackingMethods
+using StaticArrays
+using Dates
+
+example_name = "topology_split_dumbbell_2d"
+outdir = joinpath(@__DIR__, "output", example_name)
+isdir(outdir) || mkpath(outdir)
+
+curve = make_dumbbell_curve_setup(neck_strength=0.92, N=500)
+state = MultiFrontState([curve])
+
+A0 = front_enclosed_measure(state)
+
+handler = LocalCartesianTopologyHandler(
+    d_split=1.0,
+    d_merge=2.0,
+    patch_h_factor=0.6,
+    patch_margin_factor=2.0,
+    reconstruct_scope=:whole_component,
+    preserve_fields=true,
+    max_components_created=8,
+)
+
+report = handle_topology_change!(state, handler)
+A1 = front_enclosed_measure(state)
+
+println("[$(Dates.now())] $example_name")
+println("components: 1 -> $(ncomponents(state))")
+println("event: $(report.event_type), changed=$(report.changed)")
+println("area drift: ", abs(A1 - A0) / max(abs(A0), eps(Float64)))
+
+metrics_path = joinpath(outdir, "metrics.csv")
+open(metrics_path, "w") do io
+    println(io, "time,components,event,changed,area0,area1,area_drift")
+    println(io, "0.0,1,none,false,$A0,$A0,0.0")
+    println(io, "1.0,$(ncomponents(state)),$(report.event_type),$(report.changed),$A0,$A1,$(abs(A1-A0)/max(abs(A0),eps(Float64)))")
+end
+
+if Base.find_package("CairoMakie") !== nothing
+    try
+        using CairoMakie
+        FrontTrackingMethods.set_makie_theme!()
+
+        eq0 = FrontEquation(terms=(AdvectionTerm(SVector(0.0, 0.0)),), state=MultiFrontState([curve]), topology_handler=NoTopologyChange())
+        snapshot(eq0, joinpath(outdir, "initial.png"); title=example_name * " initial")
+
+        eqf = FrontEquation(terms=(AdvectionTerm(SVector(0.0, 0.0)),), state=state, topology_handler=NoTopologyChange())
+        snapshot(eqf, joinpath(outdir, "final.png"); title=example_name * " final")
+    catch err
+        @warn "Makie snapshot skipped" exception=(err, catch_backtrace())
+    end
+end

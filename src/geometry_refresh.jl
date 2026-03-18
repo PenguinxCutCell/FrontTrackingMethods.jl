@@ -44,3 +44,43 @@ function refresh_geometry!(state::FrontState; rebuild_dec::Bool=true)
     end
     return state
 end
+
+function _refresh_component_geometry!(component::FrontComponentState;
+                                      rebuild_dec::Bool=true,
+                                      build_dec::Bool=false)
+    mesh = component.mesh
+    component.geom = compute_geometry(mesh)
+
+    if build_dec && component.dec === nothing
+        component.dec = FrontIntrinsicOps.build_dec(mesh, component.geom)
+        if mesh isa SurfaceMesh
+            component.geom = FrontIntrinsicOps.compute_curvature(mesh, component.geom, component.dec)
+        end
+    elseif rebuild_dec && component.dec !== nothing
+        component.dec = FrontIntrinsicOps.build_dec(mesh, component.geom)
+        if mesh isa SurfaceMesh
+            component.geom = FrontIntrinsicOps.compute_curvature(mesh, component.geom, component.dec)
+        end
+    end
+
+    empty!(component.cache)
+    return component
+end
+
+function refresh_geometry!(state::MultiFrontState; build_dec::Bool=false, which=:all)
+    idxs = if which === :all
+        eachindex(state.components)
+    elseif which isa Integer
+        (Int(which),)
+    elseif which isa AbstractVector{<:Integer} || which isa Tuple
+        Int.(collect(which))
+    else
+        error("refresh_geometry!(MultiFrontState): `which` must be :all, Int, or collection of Int.")
+    end
+
+    for i in idxs
+        _refresh_component_geometry!(state.components[i]; rebuild_dec=true, build_dec=build_dec)
+    end
+    empty!(state.cache)
+    return state
+end

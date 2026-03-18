@@ -1,6 +1,15 @@
 # front_types.jl – Core abstract types for FrontTrackingMethods.
 
 """
+    AbstractFrontState
+
+Abstract supertype for front simulation states.
+Concrete state types include `FrontState` (single component) and
+`MultiFrontState` (multiple connected components).
+"""
+abstract type AbstractFrontState end
+
+"""
     AbstractFrontTerm
 
 Abstract supertype for all motion terms in a front evolution equation.

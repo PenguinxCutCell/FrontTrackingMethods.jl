@@ -15,6 +15,7 @@ makedocs(
         "Benchmarks" => "benchmarks.md",
         "Diagnostics" => "diagnostics.md",
         "Remeshing" => "remeshing.md",
+        "Topology change (v0.3)" => "topology_change.md",
         "API Reference" => "api.md",
         "Examples" => "examples.md",
         "Plotting and animations" => "plotting.md",

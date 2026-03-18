@@ -168,6 +168,7 @@ end
 
 FTM.plot_front(mesh::Union{FIO.CurveMesh,FIO.SurfaceMesh}; kwargs...) = FIO.plot_front(mesh; kwargs...)
 FTM.plot_front(state::FTM.FrontState; kwargs...) = FTM.plot_state(state; kwargs...)
+FTM.plot_front(state::FTM.MultiFrontState; kwargs...) = FTM.plot_state(state; kwargs...)
 FTM.plot_front(eq::FTM.FrontEquation; kwargs...) = FTM.plot_equation(eq; kwargs...)
 
 function FTM.plot_front(mesh::FIO.CurveMesh;
@@ -289,6 +290,74 @@ function FTM.plot_state(state::FTM.FrontState;
     return fig, ax, p
 end
 
+function FTM.plot_state(state::FTM.MultiFrontState;
+    figure=nothing,
+    axis=nothing,
+    clear_axis::Bool=false,
+    show_vertices::Bool=false,
+    show_normals::Bool=false,
+    normal_scale::Real=0.05,
+    normal_every::Int=1,
+    field=nothing,
+    wireframe::Bool=false,
+    title=nothing,
+    color=:royalblue,
+    xlims=nothing,
+    ylims=nothing,
+    zlims=nothing,
+    kwargs...,
+)
+    FTM.ncomponents(state) > 0 || error("plot_state(::MultiFrontState): state has no components.")
+
+    comps = collect(FTM.eachcomponent(state))
+    first_mesh = comps[1].mesh
+    is2d = first_mesh isa FIO.CurveMesh
+
+    fig, ax = if is2d
+        _figure_axis_2d(; figure=figure, axis=axis, title=title)
+    else
+        _figure_axis_3d(; figure=figure, axis=axis, title=title)
+    end
+    clear_axis && _clear_axis_keep_decorations!(ax)
+
+    last_plot = nothing
+    for comp in comps
+        cstate = FTM.FrontState{typeof(comp.mesh),typeof(comp.geom),typeof(comp.dec)}(
+            comp.mesh,
+            comp.geom,
+            comp.dec,
+            FTM.current_time(state),
+            comp.fields,
+            comp.cache,
+        )
+
+        _, _, p = FTM.plot_state(cstate;
+            figure=fig,
+            axis=ax,
+            clear_axis=false,
+            show_vertices=show_vertices,
+            show_normals=show_normals,
+            normal_scale=normal_scale,
+            normal_every=normal_every,
+            field=field,
+            wireframe=wireframe,
+            title=nothing,
+            color=color,
+            xlims=xlims,
+            ylims=ylims,
+            zlims=zlims,
+            kwargs...,
+        )
+        last_plot = p
+    end
+
+    if title !== nothing
+        ax.title = title
+    end
+    _apply_axis_limits!(ax; xlims=xlims, ylims=ylims, zlims=zlims)
+    return fig, ax, last_plot
+end
+
 function FTM.plot_equation(eq::FTM.FrontEquation; title=nothing, kwargs...)
     tnow = FTM.current_time(eq)
     tt = title === nothing ? "t = $(round(tnow, digits=4))" : title
@@ -300,6 +369,9 @@ function FTM.snapshot(obj, filename::AbstractString; kwargs...)
         f, _, _ = FTM.plot_front(obj; kwargs...)
         f
     elseif obj isa FTM.FrontState
+        f, _, _ = FTM.plot_state(obj; kwargs...)
+        f
+    elseif obj isa FTM.MultiFrontState
         f, _, _ = FTM.plot_state(obj; kwargs...)
         f
     elseif obj isa FTM.FrontEquation
@@ -372,6 +444,7 @@ FTM.animate_equation!(eq::FTM.FrontEquation, filename::AbstractString, times; kw
 # Convenience user API
 Makie.plot(mesh::Union{FIO.CurveMesh,FIO.SurfaceMesh}; kwargs...) = first(FTM.plot_front(mesh; kwargs...))
 Makie.plot(state::FTM.FrontState; kwargs...) = first(FTM.plot_state(state; kwargs...))
+Makie.plot(state::FTM.MultiFrontState; kwargs...) = first(FTM.plot_state(state; kwargs...))
 Makie.plot(eq::FTM.FrontEquation; kwargs...) = first(FTM.plot_equation(eq; kwargs...))
 
 end

@@ -13,6 +13,10 @@ Short descriptions of example scripts included in the repository (`examples/`).
 - `serpentine_2d.jl` — serpentine deformation benchmark setup.
 - `translate_circle.jl` — translation demo for a circle.
 - `translate_sphere.jl` — translation demo for a sphere.
+- `topology_merge_two_circles_2d.jl` — 2-D merge event via local Cartesian reconstruction.
+- `topology_split_dumbbell_2d.jl` — 2-D split event on a dumbbell-like curve.
+- `topology_merge_two_spheres_3d.jl` — coarse 3-D merge prototype smoke example.
+- `topology_split_dumbbell_3d.jl` — coarse 3-D split prototype smoke example.
 - `zalesak_disk_rotation.jl` — Zalesak disk rotation demo.
 - `zalesak_sphere_rotation.jl` — coarse 3-D slotted-sphere rigid-rotation benchmark.
 

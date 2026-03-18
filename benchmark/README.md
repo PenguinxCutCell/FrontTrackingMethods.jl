@@ -87,6 +87,19 @@ and do not depend on plotting:
 
 CSV outputs are written under `benchmark/output/` by default.
 
+## Topology-change study scripts (v0.3)
+
+These scripts provide coarse, non-plotting sweeps for the geometry-driven
+topology pipeline:
+
+- `julia --project=. benchmark/run_topology_merge_2d_study.jl`
+- `julia --project=. benchmark/run_topology_split_2d_study.jl`
+- `julia --project=. benchmark/run_topology_merge_3d_study.jl`
+- `julia --project=. benchmark/run_topology_split_3d_study.jl`
+
+Outputs are CSV files under `benchmark/output/` with event counts,
+component counts, area/volume drift, and runtime.
+
 ## Marker-count convergence study
 
 `convergence_markers.jl` sweeps each benchmark case over a range of marker

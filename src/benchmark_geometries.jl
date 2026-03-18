@@ -333,3 +333,104 @@ function make_zalesak_sphere_surface(;
 
     return SurfaceMesh{T}(new_pts, remapped)
 end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.3 topology-change benchmark geometries
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    make_two_circles_merge_setup(; c1, c2, R=0.12, N=192)
+
+Create two separated circular components intended for merge-detection tests.
+Returns a vector `[mesh1, mesh2]`.
+"""
+function make_two_circles_merge_setup(;
+    c1::SVector{2,Float64}=SVector(0.42, 0.50),
+    c2::SVector{2,Float64}=SVector(0.58, 0.50),
+    R::Float64=0.12,
+    N::Int=192,
+)
+    m1 = make_circle_benchmark_curve(center=c1, R=R, N=N)
+    m2 = make_circle_benchmark_curve(center=c2, R=R, N=N)
+    return [m1, m2]
+end
+
+"""
+    make_dumbbell_curve_setup(; center, R=0.20, neck_strength=0.72, N=320)
+
+Create a closed dumbbell-like curve using a radial harmonic perturbation.
+Larger `neck_strength` yields a thinner neck and easier split detection.
+"""
+function make_dumbbell_curve_setup(;
+    center::SVector{2,Float64}=SVector(0.5, 0.5),
+    R::Float64=0.20,
+    neck_strength::Float64=0.72,
+    N::Int=320,
+)
+    T = Float64
+    s = clamp(neck_strength, 0.0, 0.95)
+    pts = Vector{SVector{2,T}}(undef, N)
+    for k in 1:N
+        θ = 2T(π) * (k - 1) / N
+        r = R * (1 - s * cos(2θ))
+        pts[k] = center + SVector{2,T}(r * cos(θ), r * sin(θ))
+    end
+    edges = [SVector{2,Int}(k, mod1(k + 1, N)) for k in 1:N]
+    return CurveMesh{T}(pts, edges)
+end
+
+"""
+    make_peanut_curve_setup(; center, R=0.20, neck_strength=0.35, N=320)
+
+Create a thicker peanut-like curve (less likely to trigger split early).
+"""
+function make_peanut_curve_setup(;
+    center::SVector{2,Float64}=SVector(0.5, 0.5),
+    R::Float64=0.20,
+    neck_strength::Float64=0.35,
+    N::Int=320,
+)
+    return make_dumbbell_curve_setup(center=center, R=R, neck_strength=neck_strength, N=N)
+end
+
+"""
+    make_two_spheres_merge_setup(; c1, c2, R=0.14, refinement=2)
+
+Create two separated sphere components for 3-D merge prototype tests.
+Returns a vector `[mesh1, mesh2]`.
+"""
+function make_two_spheres_merge_setup(;
+    c1::SVector{3,Float64}=SVector(0.35, 0.50, 0.50),
+    c2::SVector{3,Float64}=SVector(0.65, 0.50, 0.50),
+    R::Float64=0.14,
+    refinement::Int=2,
+)
+    s1 = make_sphere_benchmark_surface(center=c1, R=R, refinement=refinement)
+    s2 = make_sphere_benchmark_surface(center=c2, R=R, refinement=refinement)
+    return [s1, s2]
+end
+
+"""
+    make_dumbbell_surface_setup(; center, R=0.16, neck_strength=0.45, refinement=2)
+
+Create a coarse single closed dumbbell-like surface by warping an icosphere.
+This is intended for prototype split-detection smoke tests.
+"""
+function make_dumbbell_surface_setup(;
+    center::SVector{3,Float64}=SVector(0.5, 0.5, 0.5),
+    R::Float64=0.16,
+    neck_strength::Float64=0.45,
+    refinement::Int=2,
+)
+    base = make_sphere_benchmark_surface(center=center, R=R, refinement=refinement)
+    s = clamp(neck_strength, 0.0, 0.9)
+    new_pts = similar(base.points)
+    for i in eachindex(base.points)
+        p = base.points[i]
+        q = p - center
+        x = q[1] / max(R, eps(Float64))
+        scale = 1 + s * (x^2 - 0.5)
+        new_pts[i] = center + SVector(scale * q[1], q[2], q[3])
+    end
+    return SurfaceMesh{Float64}(new_pts, base.faces)
+end

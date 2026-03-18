@@ -49,7 +49,7 @@ state = current_state(eq)
 println("centroid: ", sum(state.mesh.points) / length(state.mesh.points))
 ```
 
-## v0.2 Feature Matrix
+## v0.3 Feature Matrix
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -71,7 +71,11 @@ println("centroid: ", sum(state.mesh.points) / length(state.mesh.points))
 | Benchmark velocity fields | ✅ Stable | v0.2 new |
 | Front-to-front comparison metrics | ✅ Stable | v0.2 new |
 | Lightweight callbacks (`EveryNSteps`) | ✅ Stable | v0.2 new |
-| Topology change / remeshing | ❌ Not in v0.2 | planned for v0.3 |
+| Multi-component states (`MultiFrontState`) | ✅ New in v0.3 | additive to `FrontState` |
+| Geometry-driven 2-D topology change | ✅ Experimental / usable | local Cartesian reconstruction |
+| Geometry-driven 3-D topology change | ⚠️ Prototype | coarse whole-component reconstruction |
+| Film-model-based coalescence / rupture | ❌ Not in v0.3 | future work |
+| Topology change / remeshing | ⚠️ Partial in v0.3 | remeshing remains separate from event detection |
 | Contact / collision handling | ❌ Not in v0.2 | |
 | Cut-cell bulk coupling | ❌ Out of scope | |
 
@@ -112,7 +116,27 @@ error scripts are in `benchmark/` (`julia --project=. benchmark/run_all.jl`).
 | Severe 3-D deformation with remeshing | **Experimental** – benchmarked, tuning-sensitive |
 | Surface remeshing quality | **Experimental** – fixed-topology conservative updates |
 | Barycentric surface transfer | **Strong** – constants preserved; smooth fields beat nearest |
-| Topology change | **Missing** – out of v0.2 scope |
+| 2-D topology change | **Usable (experimental)** – geometry-driven local reconstruction |
+| 3-D topology change | **Prototype** – coarse smoke/regression support |
+| Film drainage / rupture physics | **Missing** – intentionally out of v0.3 scope |
+
+## Topology change in v0.3
+
+v0.3 keeps explicit front tracking as the primary representation and introduces
+an additive geometry-driven topology pipeline:
+
+- Normal evolution remains explicit front tracking on `CurveMesh` / `SurfaceMesh`.
+- Imminent events are detected geometrically.
+- A local Cartesian patch is rasterized with an indicator field.
+- Marching-squares-style (2-D) / coarse marching-cubes-style (3-D prototype)
+  reconstruction creates post-event components.
+- Reconstructed components replace old components in `MultiFrontState`.
+
+Current scope and limits:
+
+- 2-D merge/split is the main validated target for v0.3.
+- 3-D support is intentionally prototype-grade and conservative.
+- Physical film-drainage / rupture models are **not** included in v0.3.
 
 ## Relationship to LevelSetMethods.jl
 
