@@ -153,41 +153,220 @@ end
 
 """
     ExperimentalSurfaceRemesher(;
-        iterations = 5,
-        strength   = 0.3,
+        iterations = 4,
+        strength = 0.35,
+        lmax = nothing,
+        lmin = nothing,
+        min_area = 1e-14,
+        volume_correction = false,
+        volume_relaxation = 0.15,
+        max_tangential_step = 0.35,
     )
 
 Experimental fixed-topology tangential remesher for triangulated surfaces.
 
-Improves mesh quality by moving each vertex tangentially toward the
-centroid of its neighbors, without changing topology.
+Improves mesh quality by combining tangential centroid smoothing with
+edge-length regularization, without changing topology.
 
 ⚠ EXPERIMENTAL in v0.2.  Use for qualitative improvement only.
-Volume may drift slightly.
+Volume may drift slightly unless `volume_correction=true`.
 
 Parameters
 ----------
 - `iterations` – number of smoothing passes.
-- `strength`   – blending factor in [0, 1].
+- `strength`   – blending factor in [0, 1] for tangential updates.
+- `lmax`, `lmin` – target edge-length bounds. If `nothing`, set from current mean edge length.
+- `min_area` – reject local updates that create triangles with area below this threshold.
+- `volume_correction` – optional mild global normal offset to reduce volume drift.
+- `volume_relaxation` – correction strength in [0, 1].
+- `max_tangential_step` – per-iteration displacement cap as a fraction of mean edge length.
 """
 struct ExperimentalSurfaceRemesher <: AbstractRedistributor
-    iterations :: Int
-    strength   :: Float64
+    iterations          :: Int
+    strength            :: Float64
+    lmax                :: Union{Nothing,Float64}
+    lmin                :: Union{Nothing,Float64}
+    min_area            :: Float64
+    volume_correction   :: Bool
+    volume_relaxation   :: Float64
+    max_tangential_step :: Float64
 end
 
 function ExperimentalSurfaceRemesher(;
-    iterations :: Int  = 5,
-    strength   :: Real = 0.3,
+    iterations          :: Int  = 4,
+    strength            :: Real = 0.35,
+    lmax                        = nothing,
+    lmin                        = nothing,
+    min_area           :: Real = 1e-14,
+    volume_correction  :: Bool = false,
+    volume_relaxation  :: Real = 0.15,
+    max_tangential_step:: Real = 0.35,
 )
-    return ExperimentalSurfaceRemesher(iterations, Float64(strength))
+    return ExperimentalSurfaceRemesher(
+        iterations,
+        Float64(strength),
+        lmax === nothing ? nothing : Float64(lmax),
+        lmin === nothing ? nothing : Float64(lmin),
+        Float64(min_area),
+        volume_correction,
+        Float64(volume_relaxation),
+        Float64(max_tangential_step),
+    )
 end
 
 function redistribute!(state::FrontState, r::ExperimentalSurfaceRemesher)
     state.mesh isa SurfaceMesh ||
         error("ExperimentalSurfaceRemesher requires a SurfaceMesh.")
+
+    r.iterations >= 1 || return state
+    r.strength > 0 || return state
+
     for _ in 1:r.iterations
-        _tangential_smooth_step!(state, r.strength)
+        V_before = if r.volume_correction && is_closed(state.mesh)
+            enclosed_measure(state.mesh)
+        else
+            nothing
+        end
+        _experimental_surface_step!(state, r)
+        if r.volume_correction && V_before !== nothing
+            _apply_global_volume_correction!(state, V_before, r.volume_relaxation)
+        end
     end
+    return state
+end
+
+function _experimental_surface_step!(state::FrontState, r::ExperimentalSurfaceRemesher)
+    mesh    = state.mesh
+    pts     = mesh.points
+    normals = state.geom.vertex_normals
+    topo    = build_topology(mesh)
+    v2v     = _vertex_neighbors(mesh, topo)
+    v2f     = _vertex_faces(mesh)
+    T       = eltype(eltype(pts))
+
+    edges = topo.edges
+    lengths = [norm(pts[e[2]] - pts[e[1]]) for e in edges]
+    hmean = isempty(lengths) ? one(T) : sum(lengths) / length(lengths)
+    lmax = r.lmax === nothing ? T(1.35) * hmean : T(r.lmax)
+    lmin = r.lmin === nothing ? T(0.70) * hmean : T(r.lmin)
+    lmax = max(lmax, lmin + eps(T))
+
+    acc = [zero(eltype(pts)) for _ in eachindex(pts)]
+    cnt = zeros(Int, length(pts))
+
+    for vi in eachindex(pts)
+        nbrs = v2v[vi]
+        isempty(nbrs) && continue
+        centroid = sum(pts[j] for j in nbrs) / length(nbrs)
+        disp = centroid - pts[vi]
+        n = normals[vi]
+        tang = disp - dot(disp, n) * n
+        acc[vi] += tang
+        cnt[vi] += 1
+    end
+
+    for e in edges
+        i, j = e[1], e[2]
+        d = pts[j] - pts[i]
+        len = norm(d)
+        len <= eps(T) && continue
+        dir = d / len
+
+        if len > lmax
+            δ = (len - lmax) / 2
+            di =  δ * dir
+            dj = -δ * dir
+            ni, nj = normals[i], normals[j]
+            acc[i] += di - dot(di, ni) * ni
+            acc[j] += dj - dot(dj, nj) * nj
+            cnt[i] += 1
+            cnt[j] += 1
+        elseif len < lmin
+            δ = (lmin - len) / 2
+            di = -δ * dir
+            dj =  δ * dir
+            ni, nj = normals[i], normals[j]
+            acc[i] += di - dot(di, ni) * ni
+            acc[j] += dj - dot(dj, nj) * nj
+            cnt[i] += 1
+            cnt[j] += 1
+        end
+    end
+
+    max_step = T(r.max_tangential_step) * hmean
+    α = T(r.strength)
+    new_pts = copy(pts)
+    for vi in eachindex(pts)
+        cnt[vi] == 0 && continue
+        disp = α * (acc[vi] / cnt[vi])
+        dnorm = norm(disp)
+        if dnorm > max_step
+            disp *= max_step / dnorm
+        end
+
+        cand = pts[vi] + disp
+        if _vertex_move_preserves_local_area(mesh, vi, cand, v2f; min_area=T(r.min_area))
+            new_pts[vi] = cand
+        end
+    end
+
+    state.mesh = _replace_mesh(mesh, new_pts)
+    refresh_geometry!(state)
+    return state
+end
+
+function _vertex_faces(mesh::SurfaceMesh)
+    v2f = [Int[] for _ in eachindex(mesh.points)]
+    for (fi, f) in enumerate(mesh.faces)
+        push!(v2f[f[1]], fi)
+        push!(v2f[f[2]], fi)
+        push!(v2f[f[3]], fi)
+    end
+    return v2f
+end
+
+function _vertex_move_preserves_local_area(
+    mesh::SurfaceMesh,
+    vi::Int,
+    cand,
+    v2f;
+    min_area,
+)
+    pts = mesh.points
+    for fi in v2f[vi]
+        f = mesh.faces[fi]
+        p1 = f[1] == vi ? cand : pts[f[1]]
+        p2 = f[2] == vi ? cand : pts[f[2]]
+        p3 = f[3] == vi ? cand : pts[f[3]]
+        A = norm((p2 - p1) × (p3 - p1)) / 2
+        A > min_area || return false
+    end
+    return true
+end
+
+function _apply_global_volume_correction!(state::FrontState, V_target::Real, ω::Real)
+    mesh = state.mesh
+    mesh isa SurfaceMesh || return state
+
+    V_curr = enclosed_measure(mesh)
+    dV = V_target - V_curr
+    abs(dV) <= eps(Float64) && return state
+
+    A = measure(mesh, state.geom)
+    A <= eps(Float64) && return state
+
+    pts = mesh.points
+    T   = eltype(eltype(pts))
+    normals = state.geom.vertex_normals
+    hmean = sum(state.geom.edge_lengths) / max(length(state.geom.edge_lengths), 1)
+
+    δ = T(ω) * T(dV / A)
+    δmax = T(0.1) * T(hmean)
+    δ = clamp(δ, -δmax, δmax)
+
+    new_pts = [pts[i] + δ * normals[i] for i in eachindex(pts)]
+    state.mesh = _replace_mesh(mesh, new_pts)
+    refresh_geometry!(state)
     return state
 end
 

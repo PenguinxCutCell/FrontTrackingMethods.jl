@@ -28,3 +28,16 @@ println("centroid: ", front_centroid(state))
 Redistribution and remeshing are purely numerical: call `redistribute!`
 or pass a `redistributor` to `FrontEquation` or use callbacks such as
 `EveryNSteps`.
+
+## Surface field transfer
+
+When redistribution/remeshing moves vertices, transfer vertex fields with
+`transfer_vertex_field!`:
+
+```julia
+transfer_vertex_field!(dst, oldmesh, srcvals, newmesh; method=:barycentric)
+```
+
+- `:nearest_vertex` is the simplest fallback.
+- `:barycentric` is generally preferred on surfaces for smooth fields and
+	preserves constants exactly.

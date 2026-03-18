@@ -18,12 +18,14 @@ using Statistics
 #   test_curvature_motion.jl       – CurvatureMotionTerm
 #   test_curve_redistribution.jl   – CurveEqualArcRedistributor, AdaptiveCurveRemesher
 #   test_surface_redistribution.jl – SurfaceTangentialRedistributor, ExperimentalSurfaceRemesher
+#   test_surface_quality_metrics.jl – reusable surface quality diagnostics
 #   test_transfer_curve.jl         – field transfer on curves
 #   test_transfer_surface.jl       – field transfer on surfaces
 #   test_benchmark_rigid_2d.jl     – rigid 2-D translation / rotation
 #   test_benchmark_open_curve_2d.jl – open-curve topology/advection benchmark
 #   test_benchmark_rigid_3d.jl     – rigid 3-D translation / rotation
 #   test_benchmark_zalesak_2d.jl   – Zalesak disk one rotation
+#   test_benchmark_zalesak_sphere_3d.jl – slotted-sphere rigid-rotation benchmark
 #   test_benchmark_vortex_2d.jl    – Rider–Kothe reversed vortex
 #   test_benchmark_serpentine_2d.jl – serpentine deformation smoke test
 #   test_benchmark_enright_3d.jl   – Enright 3-D deformation smoke test
@@ -248,12 +250,14 @@ include("test_normal_motion.jl")
 include("test_curvature_motion.jl")
 include("test_curve_redistribution.jl")
 include("test_surface_redistribution.jl")
+include("test_surface_quality_metrics.jl")
 include("test_transfer_curve.jl")
 include("test_transfer_surface.jl")
 include("test_benchmark_rigid_2d.jl")
 include("test_benchmark_open_curve_2d.jl")
 include("test_benchmark_rigid_3d.jl")
 include("test_benchmark_zalesak_2d.jl")
+include("test_benchmark_zalesak_sphere_3d.jl")
 include("test_benchmark_vortex_2d.jl")
 include("test_benchmark_serpentine_2d.jl")
 include("test_benchmark_enright_3d.jl")

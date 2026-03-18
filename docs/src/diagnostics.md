@@ -105,6 +105,43 @@ Returns minimum triangle angle and mean aspect ratio.  Low minimum angle
 (< 5°) or high aspect ratio (> 20) indicate degenerate elements that will
 cause integration errors.
 
+### `surface_edge_length_stats(mesh)`
+
+Returns `(min, max, mean, std, ratio)` for surface edge lengths, with
+`ratio = max/min`.
+
+### `surface_triangle_area_stats(mesh)`
+
+Returns `(min, max, mean)` for triangle areas.
+
+### `surface_triangle_angle_stats(mesh)`
+
+Returns `(min_angle, max_angle, mean_min_angle)` in radians.
+
+### `surface_aspect_ratio_stats(mesh)`
+
+Returns `(min, max, mean)` using
+
+```
+aspect = (lmax * perimeter) / (4 * sqrt(3) * area)
+```
+
+for each triangle (1 for equilateral).
+
+### `surface_degenerate_fraction(mesh; atol=...)`
+
+Fraction of triangles with area `<= atol`.
+
+### `surface_quality_summary(mesh)`
+
+Compact named-tuple aggregation of edge, area, angle, aspect, and degenerate
+fraction metrics.
+
+### `surface_normal_consistency(mesh, geom)`
+
+Optional orientation-consistency diagnostic based on alignment between face
+normals and averaged vertex normals.
+
 ### `check_front_validity(state; warn=true)`
 
 Returns `true` if the front passes basic sanity checks:

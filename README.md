@@ -63,9 +63,9 @@ println("centroid: ", sum(state.mesh.points) / length(state.mesh.points))
 | `CurveEqualArcRedistributor` | ✅ Stable | |
 | `AdaptiveCurveRemesher` | ✅ Stable | v0.2 new; corner protection |
 | `SurfaceTangentialRedistributor` | ⚠️ Experimental | useful for modest deformation |
-| `ExperimentalSurfaceRemesher` | ⚠️ Experimental | v0.2 new; edge flips + smoothing |
+| `ExperimentalSurfaceRemesher` | ⚠️ Experimental | fixed-topology tangential + edge-length regularization |
 | Field transfer – piecewise linear (curves) | ✅ Stable | v0.2 improved |
-| Field transfer – barycentric (surfaces) | ✅ Stable | v0.2 new |
+| Field transfer – barycentric (surfaces) | ✅ Stable | validated vs nearest-vertex on smooth fields |
 | Field transfer – nearest-vertex fallback | ✅ Stable | |
 | Benchmark geometry constructors | ✅ Stable | v0.2 new |
 | Benchmark velocity fields | ✅ Stable | v0.2 new |
@@ -92,6 +92,12 @@ in `src/benchmark_geometries.jl` and `src/benchmark_fields.jl`:
 | Zalesak sphere | 3-D | `rigid_rotation_3d` | volume drift + qualitative slot |
 | Enright deformation | 3-D | `enright_3d` | volume drift, mesh quality |
 
+Headless 3-D study scripts for stronger quantitative evidence (outside default CI):
+
+- `benchmark/run_sphere_rigid_study.jl`
+- `benchmark/run_zalesak_sphere_study.jl`
+- `benchmark/run_enright3d_remeshing_study.jl`
+
 Examples are in the `examples/` directory.  Advection benchmark drivers and
 error scripts are in `benchmark/` (`julia --project=. benchmark/run_all.jl`).
 
@@ -101,10 +107,11 @@ error scripts are in `benchmark/` (`julia --project=. benchmark/run_all.jl`).
 |----------|--------|
 | 2-D rigid motion tests | **Strong** – tight tolerances, fully automated |
 | 2-D reversible deformation tests | **Strong** – good with redistribution |
-| 3-D rigid motion tests | **Good** – works on coarse meshes |
-| 3-D deformation tests | **Moderate** – needs remeshing; coarse only in CI |
-| Surface remeshing quality | **Experimental** – works but may change API |
-| Barycentric surface transfer | **Good** – materially better than nearest-vertex |
+| 3-D rigid motion tests | **Strong** – centroid/area/volume/quality checks in CI |
+| Mild 3-D prescribed deformations | **Usable** – robust on coarse/moderate meshes |
+| Severe 3-D deformation with remeshing | **Experimental** – benchmarked, tuning-sensitive |
+| Surface remeshing quality | **Experimental** – fixed-topology conservative updates |
+| Barycentric surface transfer | **Strong** – constants preserved; smooth fields beat nearest |
 | Topology change | **Missing** – out of v0.2 scope |
 
 ## Relationship to LevelSetMethods.jl

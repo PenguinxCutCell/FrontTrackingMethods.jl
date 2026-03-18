@@ -98,7 +98,8 @@ example scripts in `examples/`.
 **Geometry:** slotted sphere built by `make_zalesak_sphere_surface`.  
 **Field:** rigid-body rotation.  
 **What it stresses:** fixed-topology surface tracking under rigid motion, slot-corner preservation on a triangulated mesh.  
-**Note:** in v0.2, the slot geometry is approximate (triangulation removes faces in the slot region). Exact slot geometry requires CAD-quality meshing which is outside v0.2 scope.
+**Primary metrics (v0.2):** surface-area drift, centroid drift, symmetric Hausdorff to initial, slot-region proxy distance.  
+**Important limitation:** the current slotted-sphere constructor is approximate and not guaranteed closed at coarse resolution, so enclosed-volume drift is not the primary metric here.
 
 ---
 
@@ -114,5 +115,6 @@ example scripts in `examples/`.
 - final volume drift
 - surface area drift
 - approximate symmetric Hausdorff distance to initial sphere
-- minimum triangle quality over time
-**Note:** surface remeshing is essential for this benchmark at longer times.  Without remeshing, the mesh degrades rapidly after the forward half of the cycle.
+- quality over time (minimum triangle angle, degenerate-triangle fraction)
+**Which metric to check first:** for Enright, check symmetric Hausdorff (shape recovery) first, then volume drift, then quality-over-time.  
+**Note:** surface remeshing is often helpful but remains experimental; benchmark studies should compare remeshing-enabled and no-remeshing runs.

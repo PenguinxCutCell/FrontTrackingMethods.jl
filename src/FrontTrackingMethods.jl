@@ -120,6 +120,13 @@ export
     front_spacing,
     check_front_validity,
     normal_tangential_decomposition,
+    surface_edge_length_stats,
+    surface_triangle_area_stats,
+    surface_triangle_angle_stats,
+    surface_aspect_ratio_stats,
+    surface_quality_summary,
+    surface_degenerate_fraction,
+    surface_normal_consistency,
 
     # Benchmark geometry constructors (v0.2)
     make_circle_benchmark_curve,

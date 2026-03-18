@@ -86,7 +86,7 @@ r = SurfaceTangentialRedistributor(; iterations=3, strength=0.5)
 redistribute!(state, r)
 ```
 
-**Status:** stable for v0.2.  
+**Status:** usable for mild/moderate 3-D deformation in v0.2.  
 **Properties:**
 - no topology change
 - volume change is typically < 5%
@@ -96,18 +96,39 @@ redistribute!(state, r)
 
 ### `ExperimentalSurfaceRemesher` *(experimental)*
 
-A more aggressive surface remesher that includes edge-flip heuristics in
-addition to tangential smoothing.
+A conservative fixed-topology surface remesher for robustness studies.
+It combines:
+
+1. tangential centroid relaxation,
+2. edge-length regularization toward `[lmin, lmax]`,
+3. local area-based move rejection to avoid degeneracy,
+4. optional mild global volume correction.
 
 ```julia
-r = ExperimentalSurfaceRemesher(; iterations=3, strength=0.3)
+r = ExperimentalSurfaceRemesher(;
+    iterations=3,
+    strength=0.25,
+    lmin=nothing,
+    lmax=nothing,
+    min_area=1e-14,
+    volume_correction=true,
+    volume_relaxation=0.15,
+)
 redistribute!(state, r)
 ```
 
 **Status:** experimental in v0.2.  API may change.  
 **Properties:**
 - no topology change
-- may improve triangle quality beyond what tangential smoothing achieves
+- deterministic conservative updates
+- avoids accepting local moves that create near-degenerate triangles
+- useful for benchmark robustness, not yet a full production remeshing framework
+
+**Threshold/tuning notes:**
+- `lmin`, `lmax`: if omitted, inferred from current mean edge length.
+- `min_area`: larger values are safer but may under-correct poor meshes.
+- `max_tangential_step`: limits per-pass vertex displacement.
+- `volume_correction=true` is only applied on closed surfaces.
 
 **Recommended for:** Enright 3-D deformation benchmark on longer runs.
 
@@ -115,10 +136,9 @@ redistribute!(state, r)
 
 ## Fixed-topology scope
 
-v0.2 remeshing is **fixed topology**: no edge insertion, edge collapse, or
-hole creation.  The vertex count may change slightly in `AdaptiveCurveRemesher`
-due to the smoothing algorithm, but the face/edge connectivity is otherwise
-preserved.
+v0.2 remeshing is **fixed topology**: no edge insertion, edge collapse, edge
+flip, or hole creation. Vertex/face connectivity is preserved for surface
+redistributors and remeshers.
 
 Topology-changing remeshing (e.g., vertex insertion for long edges) is planned
 for v0.3 and is **not** part of this release.

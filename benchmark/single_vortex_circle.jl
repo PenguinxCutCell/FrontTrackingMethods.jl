@@ -7,7 +7,8 @@ include("error_metrics.jl")
 include("velocity_interpolation.jl")
 include("visualization.jl")
 
-function run_single_vortex_circle(; N::Int=256, Tperiod::Float64=2.0, face_grid::Int=128, save_visuals::Bool=true)
+function run_single_vortex_circle(; N::Int=256, Tperiod::Float64=8.0, face_grid::Int=128, save_visuals::Bool=true,
+    xlims=(0.0, 1.0), ylims=(0.0, 1.0), zlims=nothing)
     R = 0.15
     c0 = SVector(0.5, 0.75)
     cfl = 0.125
@@ -43,12 +44,15 @@ function run_single_vortex_circle(; N::Int=256, Tperiod::Float64=2.0, face_grid:
             integrator=RK2(),
             redistributor=AdaptiveCurveRemesher(iterations=3, tangential_smooth=0.25),
         )
-        save_case_visuals!("single_vortex_circle", eq_anim, Tperiod)
+        save_case_visuals!("single_vortex_circle", eq_anim, Tperiod;
+            xlims=xlims,
+            ylims=ylims,
+            zlims=zlims,
+        )
     end
 
     return (; N=N, h=h, dt=dt, CFL=cfl, Tperiod=Tperiod, errs...)
 end
 
-if abspath(PROGRAM_FILE) == @__FILE__
     run_single_vortex_circle()
-end
+

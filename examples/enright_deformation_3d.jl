@@ -58,19 +58,33 @@ function run_and_report(label, redistributor)
         integrator   = RK2(),
         redistributor = redistributor,
     )
-    integrate!(eq, T_end; dt=dt)
+    min_angle_hist = Float64[]
+    degen_hist = Float64[]
+    cb = EveryNSteps(5, (state, t, step) -> begin
+        q = surface_quality_summary(state.mesh; degenerate_atol=1e-12)
+        push!(min_angle_hist, q.angle.min_angle)
+        push!(degen_hist, q.degenerate_fraction)
+        nothing
+    end)
+
+    integrate!(eq, T_end; dt=dt, callback=cb)
 
     state = current_state(eq)
     Vf    = front_enclosed_measure(state)
     Af    = front_measure(state)
     cf    = front_centroid(state)
     dH    = symmetric_hausdorff_surface(state.mesh, mesh0)
+    qf    = surface_quality_summary(state.mesh; degenerate_atol=1e-12)
 
     println("\n[$label]")
     @printf "  Volume drift:       %+.4e  (relative: %.4e)\n" (Vf - V0) abs(Vf - V0) / max(V0, eps())
     @printf "  Surface area drift: %+.4e  (relative: %.4e)\n" (Af - A0) abs(Af - A0) / max(A0, eps())
     @printf "  Centroid drift:      %.4e\n" norm(cf - c0)
     @printf "  Hausdorff to init:   %.4e\n" dH
+    @printf "  Final min angle:     %.4e rad\n" qf.angle.min_angle
+    @printf "  Worst min angle:     %.4e rad\n" (isempty(min_angle_hist) ? qf.angle.min_angle : minimum(min_angle_hist))
+    @printf "  Worst degen frac:    %.4e\n" (isempty(degen_hist) ? qf.degenerate_fraction : maximum(degen_hist))
+    println("  Remeshing stats:     splits/collapses/flips not tracked in v0.2 fixed-topology path")
 end
 
 run_and_report("A. No remeshing",                  nothing)

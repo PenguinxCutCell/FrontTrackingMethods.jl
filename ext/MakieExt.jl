@@ -64,6 +64,15 @@ function _clear_axis_keep_decorations!(ax)
     return ax
 end
 
+function _apply_axis_limits!(ax; xlims=nothing, ylims=nothing, zlims=nothing)
+    xlims === nothing || Makie.xlims!(ax, xlims...)
+    ylims === nothing || Makie.ylims!(ax, ylims...)
+    if zlims !== nothing && ax isa Makie.Axis3
+        Makie.zlims!(ax, zlims...)
+    end
+    return ax
+end
+
 function _figure_axis_2d(; figure=nothing, axis=nothing, title=nothing)
     if axis !== nothing
         if title !== nothing
@@ -168,16 +177,21 @@ function FTM.plot_front(mesh::FIO.CurveMesh;
     title=nothing,
     color=:royalblue,
     show_vertices::Bool=false,
+    xlims=nothing,
+    ylims=nothing,
     kwargs...,
 )
-    if _fio_has_makie_ext()
-        return FIO.plot_front(mesh;
+    fig, ax, p = if _fio_has_makie_ext()
+        FIO.plot_front(mesh;
+            figure=figure, axis=axis, clear_axis=clear_axis, title=title,
+            color=color, show_vertices=show_vertices, kwargs...)
+    else
+        _plot_curve_direct(mesh;
             figure=figure, axis=axis, clear_axis=clear_axis, title=title,
             color=color, show_vertices=show_vertices, kwargs...)
     end
-    return _plot_curve_direct(mesh;
-        figure=figure, axis=axis, clear_axis=clear_axis, title=title,
-        color=color, show_vertices=show_vertices, kwargs...)
+    _apply_axis_limits!(ax; xlims=xlims, ylims=ylims)
+    return fig, ax, p
 end
 
 function FTM.plot_front(mesh::FIO.SurfaceMesh;
@@ -188,16 +202,22 @@ function FTM.plot_front(mesh::FIO.SurfaceMesh;
     color=:royalblue,
     wireframe::Bool=false,
     show_vertices::Bool=false,
+    xlims=nothing,
+    ylims=nothing,
+    zlims=nothing,
     kwargs...,
 )
-    if _fio_has_makie_ext()
-        return FIO.plot_front(mesh;
+    fig, ax, p = if _fio_has_makie_ext()
+        FIO.plot_front(mesh;
+            figure=figure, axis=axis, clear_axis=clear_axis, title=title,
+            color=color, wireframe=wireframe, show_vertices=show_vertices, kwargs...)
+    else
+        _plot_surface_direct(mesh;
             figure=figure, axis=axis, clear_axis=clear_axis, title=title,
             color=color, wireframe=wireframe, show_vertices=show_vertices, kwargs...)
     end
-    return _plot_surface_direct(mesh;
-        figure=figure, axis=axis, clear_axis=clear_axis, title=title,
-        color=color, wireframe=wireframe, show_vertices=show_vertices, kwargs...)
+    _apply_axis_limits!(ax; xlims=xlims, ylims=ylims, zlims=zlims)
+    return fig, ax, p
 end
 
 function FTM.plot_state(state::FTM.FrontState;
@@ -212,6 +232,9 @@ function FTM.plot_state(state::FTM.FrontState;
     wireframe::Bool=false,
     title=nothing,
     color=:royalblue,
+    xlims=nothing,
+    ylims=nothing,
+    zlims=nothing,
     kwargs...,
 )
     vals = _vertex_scalar_values(state, field)
@@ -225,6 +248,8 @@ function FTM.plot_state(state::FTM.FrontState;
             title=title,
             color=color,
             show_vertices=show_vertices,
+            xlims=xlims,
+            ylims=ylims,
             kwargs...,
         )
         if vals !== nothing
@@ -236,6 +261,7 @@ function FTM.plot_state(state::FTM.FrontState;
                 FIO.plot_normals(mesh, state.geom; figure=fig, axis=ax, scale=normal_scale, every=normal_every)
             end
         end
+        _apply_axis_limits!(ax; xlims=xlims, ylims=ylims)
         return fig, ax, p
     end
 
@@ -249,6 +275,9 @@ function FTM.plot_state(state::FTM.FrontState;
         color=surface_color,
         wireframe=wireframe,
         show_vertices=show_vertices,
+        xlims=xlims,
+        ylims=ylims,
+        zlims=zlims,
         kwargs...,
     )
     if show_normals
@@ -256,6 +285,7 @@ function FTM.plot_state(state::FTM.FrontState;
             FIO.plot_normals(mesh, state.geom; figure=fig, axis=ax, scale=normal_scale, every=normal_every)
         end
     end
+    _apply_axis_limits!(ax; xlims=xlims, ylims=ylims, zlims=zlims)
     return fig, ax, p
 end
 
@@ -290,6 +320,9 @@ function FTM.record_evolution!(eq::FTM.FrontEquation, filename::AbstractString, 
     field=nothing,
     wireframe::Bool=false,
     color=:royalblue,
+    xlims=nothing,
+    ylims=nothing,
+    zlims=nothing,
     kwargs...,
 )
     isempty(times) && error("record_evolution!: `times` must be non-empty.")
@@ -302,6 +335,9 @@ function FTM.record_evolution!(eq::FTM.FrontEquation, filename::AbstractString, 
         field=field,
         wireframe=wireframe,
         color=color,
+        xlims=xlims,
+        ylims=ylims,
+        zlims=zlims,
         kwargs...,
     )
 
@@ -320,6 +356,9 @@ function FTM.record_evolution!(eq::FTM.FrontEquation, filename::AbstractString, 
             field=field,
             wireframe=wireframe,
             color=color,
+            xlims=xlims,
+            ylims=ylims,
+            zlims=zlims,
             kwargs...,
         )
     end

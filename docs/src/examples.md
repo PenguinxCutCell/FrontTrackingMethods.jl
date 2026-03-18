@@ -9,10 +9,12 @@ Short descriptions of example scripts included in the repository (`examples/`).
 - `redistribute_curve_demo.jl` — demonstrates curve redistribution strategies.
 - `rider_kothe_single_vortex.jl` — Rider–Kothe reversible vortex benchmark.
 - `rotate_circle.jl` — circle rigid rotation demo.
+- `rotate_sphere.jl` — rigid rotation demo for a sphere.
 - `serpentine_2d.jl` — serpentine deformation benchmark setup.
 - `translate_circle.jl` — translation demo for a circle.
 - `translate_sphere.jl` — translation demo for a sphere.
 - `zalesak_disk_rotation.jl` — Zalesak disk rotation demo.
+- `zalesak_sphere_rotation.jl` — coarse 3-D slotted-sphere rigid-rotation benchmark.
 
 To run an example interactively:
 

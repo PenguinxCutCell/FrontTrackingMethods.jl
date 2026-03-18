@@ -76,6 +76,17 @@ Per-case visuals are written in:
 
 `benchmark/output/<case_name>/initial.png`, `final.png`, `animation.mp4`
 
+## 3-D study scripts (headless)
+
+These scripts are intended for quantitative studies (paper-ready tables/CSV)
+and do not depend on plotting:
+
+- `julia --project=. benchmark/run_sphere_rigid_study.jl`
+- `julia --project=. benchmark/run_zalesak_sphere_study.jl`
+- `julia --project=. benchmark/run_enright3d_remeshing_study.jl`
+
+CSV outputs are written under `benchmark/output/` by default.
+
 ## Marker-count convergence study
 
 `convergence_markers.jl` sweeps each benchmark case over a range of marker

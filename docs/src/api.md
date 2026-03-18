@@ -25,7 +25,7 @@ Redistributors / Remeshing
 - `CurveEqualArcRedistributor` — equal-arc redistribution on curves.
 - `AdaptiveCurveRemesher` — fixed-topology adaptive remesher with corner protection.
 - `SurfaceTangentialRedistributor` — tangential smoothing on surfaces.
-- `ExperimentalSurfaceRemesher` — experimental surface remesher.
+- `ExperimentalSurfaceRemesher` — experimental fixed-topology surface quality remesher.
 
 Core functions
 
@@ -33,12 +33,14 @@ Core functions
 - `current_state(eq)` / `current_time(eq)` — query running equation.
 - `refresh_geometry!(state)` — recompute geometry (normals, curvature, areas).
 - `redistribute!(state, redistributor)` / `remesh!(...)` — redistribute or remesh.
-- `transfer_vertex_field!(dst, src, mode=:barycentric)` — transfer fields between meshes.
+- `transfer_vertex_field!(...)` — transfer fields between meshes (`:piecewise_linear`, `:nearest_vertex`, `:barycentric`).
 - `add_field!(state, name, values; location=:vertex)` — attach a field.
 
 Diagnostics & metrics
 
-- `front_enclosed_measure`, `front_measure`, `front_centroid`, `edge_length_stats`
+- `front_enclosed_measure`, `front_measure`, `front_centroid`, `edge_length_spread`
+- `surface_edge_length_stats`, `surface_triangle_area_stats`, `surface_triangle_angle_stats`
+- `surface_aspect_ratio_stats`, `surface_degenerate_fraction`, `surface_quality_summary`
 - `symmetric_hausdorff_curve`, `l2_distance_curve`, `relative_area_error`
 
 Callbacks
