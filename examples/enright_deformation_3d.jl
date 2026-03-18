@@ -102,8 +102,12 @@ eq_anim = FrontEquation(;
     integrator   = RK2(),
     redistributor = SurfaceTangentialRedistributor(; iterations=3),
 )
-snapshot(eq_anim, joinpath(outdir, "initial.png"); title="enright: initial", wireframe=true)
+
+xlims = (0.0, 1.0)
+ylims = (0.0, 1.0)
+zlims = (0.0, 1.0)
+snapshot(eq_anim, joinpath(outdir, "initial.png"); title="enright: initial", wireframe=true, xlims=xlims, ylims=ylims, zlims=zlims)
 record_evolution!(eq_anim, joinpath(outdir, "animation.mp4"), default_times(T_end, 120);
-    title="enright", wireframe=true)
-snapshot(eq_anim, joinpath(outdir, "final.png"); title="enright: final", wireframe=true)
+    title="enright", wireframe=true, xlims=xlims, ylims=ylims, zlims=zlims)
+snapshot(eq_anim, joinpath(outdir, "final.png"); title="enright: final", wireframe=true, xlims=xlims, ylims=ylims, zlims=zlims)
 println("Saved plotting outputs to: $outdir")

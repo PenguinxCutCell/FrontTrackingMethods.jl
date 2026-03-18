@@ -6,6 +6,7 @@ Short descriptions of example scripts included in the repository (`examples/`).
 - `deformation16_2d.jl` — 2-D 16-vortex deformation benchmark setup.
 - `enright_deformation_3d.jl` — Enright 3-D deformation smoke test on a coarse sphere.
 - `expand_circle_normal_speed.jl` — outward normal motion example.
+- `oscillating_drop_2d.jl` — periodic 2-D drop oscillation with animation and diagnostic plot.
 - `redistribute_curve_demo.jl` — demonstrates curve redistribution strategies.
 - `rider_kothe_single_vortex.jl` — Rider–Kothe reversible vortex benchmark.
 - `rotate_circle.jl` — circle rigid rotation demo.
