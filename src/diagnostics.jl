@@ -4,6 +4,41 @@
 # convergence, and detecting degenerate configurations.
 
 """
+    min_marker_position(front::PointFront1D) -> Real
+"""
+min_marker_position(front::PointFront1D) = minimum(front.x)
+min_marker_position(state::FrontState{<:PointFront1D}) = min_marker_position(state.mesh)
+
+"""
+    max_marker_position(front::PointFront1D) -> Real
+"""
+max_marker_position(front::PointFront1D) = maximum(front.x)
+max_marker_position(state::FrontState{<:PointFront1D}) = max_marker_position(state.mesh)
+
+"""
+    marker_gap(front::PointFront1D) -> Real
+
+Return `x[2] - x[1]` for two-marker fronts, otherwise `0`.
+"""
+marker_gap(front::PointFront1D) = length(front.x) == 2 ? front.x[2] - front.x[1] : zero(eltype(front.x))
+marker_gap(state::FrontState{<:PointFront1D}) = marker_gap(state.mesh)
+
+"""
+    is_valid_front(front::PointFront1D) -> Bool
+
+Check PointFront1D invariants.
+"""
+function is_valid_front(front::PointFront1D)
+    return try
+        FrontIntrinsicOps.check(front)
+    catch
+        false
+    end
+end
+
+is_valid_front(state::FrontState{<:PointFront1D}) = is_valid_front(state.mesh)
+
+"""
     min_edge_length(state::FrontState) -> Float64
 
 Return the length of the shortest edge in the current front mesh.
@@ -11,6 +46,7 @@ Return the length of the shortest edge in the current front mesh.
 function min_edge_length(state::FrontState)
     return minimum(state.geom.edge_lengths)
 end
+min_edge_length(state::FrontState{<:PointFront1D}) = marker_gap(state)
 
 """
     max_edge_length(state::FrontState) -> Float64
@@ -20,6 +56,7 @@ Return the length of the longest edge in the current front mesh.
 function max_edge_length(state::FrontState)
     return maximum(state.geom.edge_lengths)
 end
+max_edge_length(state::FrontState{<:PointFront1D}) = marker_gap(state)
 
 """
     mean_edge_length(state::FrontState) -> Float64
@@ -30,6 +67,7 @@ function mean_edge_length(state::FrontState)
     ls = state.geom.edge_lengths
     return sum(ls) / length(ls)
 end
+mean_edge_length(state::FrontState{<:PointFront1D}) = marker_gap(state)
 
 """
     edge_length_spread(state::FrontState) -> Float64
@@ -41,6 +79,7 @@ function edge_length_spread(state::FrontState)
     ls = state.geom.edge_lengths
     return maximum(ls) / max(minimum(ls), eps(eltype(ls)))
 end
+edge_length_spread(state::FrontState{<:PointFront1D}) = 1.0
 
 """
     front_enclosed_measure(state::FrontState) -> Float64
@@ -137,6 +176,22 @@ function check_front_validity(state::FrontState; warn::Bool=true)
         end
     end
 
+    return ok
+end
+
+function check_front_validity(state::FrontState{<:PointFront1D}; warn::Bool=true)
+    x = state.mesh.x
+    ok = true
+    if any(!isfinite, x)
+        msg = "check_front_validity: PointFront1D has non-finite marker coordinates."
+        warn ? (@warn msg) : error(msg)
+        ok = false
+    end
+    if length(x) == 2 && !(x[1] < x[2])
+        msg = "check_front_validity: PointFront1D requires strict ordering x[1] < x[2]."
+        warn ? (@warn msg) : error(msg)
+        ok = false
+    end
     return ok
 end
 

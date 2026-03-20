@@ -8,6 +8,7 @@ polygonal curves and triangulated surfaces built on top of `FrontIntrinsicOps.jl
 
 v0.2 supports:
 - Closed 2-D polygonal curves (`CurveMesh`) and closed 3-D surfaces (`SurfaceMesh`).
+- Minimal 1-D point fronts (`PointFront1D`) with one marker or two-marker intervals.
 - Limited open 2-D curve support for topology/geometry and prescribed-advection cases.
 - Prescribed vector advection (`AdvectionTerm`), prescribed normal motion
   (`NormalMotionTerm`), and curvature-driven motion (`CurvatureMotionTerm`).
@@ -38,6 +39,7 @@ using FrontIntrinsicOps
 # Bring key FrontIntrinsicOps names into scope
 const CurveMesh      = FrontIntrinsicOps.CurveMesh
 const SurfaceMesh    = FrontIntrinsicOps.SurfaceMesh
+const PointFront1D   = FrontIntrinsicOps.PointFront1D
 const CurveGeometry  = FrontIntrinsicOps.CurveGeometry
 const SurfaceGeometry = FrontIntrinsicOps.SurfaceGeometry
 const CurveDEC       = FrontIntrinsicOps.CurveDEC
@@ -54,6 +56,7 @@ const enclosed_measure = FrontIntrinsicOps.enclosed_measure
 # ── Source files (order matters: types first) ─────────────────────────────────
 include("front_types.jl")
 include("frontfield.jl")
+include("front1d.jl")
 include("frontstate.jl")
 include("utils.jl")
 include("geometry_refresh.jl")
@@ -117,6 +120,10 @@ export
     front_enclosed_measure,
     front_measure,
     front_centroid,
+    min_marker_position,
+    max_marker_position,
+    marker_gap,
+    is_valid_front,
     front_spacing,
     check_front_validity,
     normal_tangential_decomposition,

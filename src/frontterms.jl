@@ -36,8 +36,17 @@
 # a FrontField, a constant vector/scalar, or a Number.
 # ─────────────────────────────────────────────────────────────────────────────
 
+@inline function _call_term_func(f::Function, x, t, state)
+    if applicable(f, x, t, state)
+        return f(x, t, state)
+    elseif applicable(f, x, t)
+        return f(x, t)
+    end
+    return f(x, t, state)
+end
+
 @inline function _eval_velocity(vel::Function, x, t, state)
-    return vel(x, t, state)
+    return _call_term_func(vel, x, t, state)
 end
 @inline function _eval_velocity(vel::FrontField, x, t, state)
     # Find vertex index by position lookup – used only for function-like API
@@ -49,7 +58,7 @@ end
 end
 
 @inline function _eval_speed(sp::Function, x, t, state)
-    return sp(x, t, state)
+    return _call_term_func(sp, x, t, state)
 end
 @inline function _eval_speed(sp::FrontField, x, t, state)
     error("_eval_speed: use FrontField via accumulate_term! with index.")
@@ -62,7 +71,7 @@ end
 end
 
 @inline function _eval_coeff(coeff::Function, x, t, state)
-    return coeff(x, t, state)
+    return _call_term_func(coeff, x, t, state)
 end
 @inline function _eval_coeff(coeff::Number, x, t, state)
     return coeff
@@ -131,6 +140,49 @@ function accumulate_term!(V, term::AdvectionTerm, state, t)
     return V
 end
 
+# PointFront1D advection: scalar marker ODE(s)
+function accumulate_term!(V, term::AdvectionTerm{<:Function}, state::FrontState{<:PointFront1D}, t)
+    x = state.mesh.x
+    for a in eachindex(x)
+        V[a] = V[a] + _eval_velocity(term.velocity, x[a], t, state)
+    end
+    return V
+end
+
+function accumulate_term!(V, term::AdvectionTerm{<:FrontField}, state::FrontState{<:PointFront1D}, t)
+    fv = term.velocity.values
+    length(fv) == length(V) || error("AdvectionTerm(PointFront1D): FrontField size mismatch.")
+    for a in eachindex(V)
+        V[a] = V[a] + fv[a]
+    end
+    return V
+end
+
+@inline function _pointfront_scalar_value(v::Number, a, n)
+    return v
+end
+@inline function _pointfront_scalar_value(v::AbstractVector, a, n)
+    length(v) == n || error("PointFront1D term expects $n marker values, got $(length(v)).")
+    return v[a]
+end
+@inline function _pointfront_scalar_value(v::Tuple, a, n)
+    length(v) == n || error("PointFront1D term expects $n marker values, got $(length(v)).")
+    return v[a]
+end
+@inline function _pointfront_scalar_value(v, a, n)
+    return v
+end
+
+function accumulate_term!(V, term::AdvectionTerm, state::FrontState{<:PointFront1D}, t)
+    x = state.mesh.x
+    n = length(x)
+    vel = term.velocity
+    for a in eachindex(V)
+        V[a] = V[a] + _pointfront_scalar_value(vel, a, n)
+    end
+    return V
+end
+
 function compute_cfl(term::AdvectionTerm{<:Function}, state, t)
     h = front_spacing(state)
     pts = state.mesh.points
@@ -150,6 +202,34 @@ end
 function compute_cfl(term::AdvectionTerm, state, t)
     h = front_spacing(state)
     max_speed = norm(term.velocity)
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::AdvectionTerm{<:Function}, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    x = state.mesh.x
+    max_speed = maximum(abs(_eval_velocity(term.velocity, x[a], t, state)) for a in eachindex(x))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::AdvectionTerm{<:FrontField}, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    fv = term.velocity.values
+    max_speed = maximum(abs(fv[a]) for a in eachindex(fv))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::AdvectionTerm, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    n = length(state.mesh.x)
+    if term.velocity isa Number
+        max_speed = abs(term.velocity)
+    else
+        max_speed = maximum(abs(_pointfront_scalar_value(term.velocity, a, n)) for a in 1:n)
+    end
     max_speed < eps(typeof(h)) && return Inf
     return h / max_speed
 end
@@ -220,6 +300,37 @@ function accumulate_term!(V, term::NormalMotionTerm, state, t)
     return V
 end
 
+function accumulate_term!(V, term::NormalMotionTerm{<:Function}, state::FrontState{<:PointFront1D}, t)
+    x       = state.mesh.x
+    normals = state.geom.vertex_normals
+    for a in eachindex(x)
+        vn = _eval_speed(term.speed, x[a], t, state)
+        V[a] = V[a] + vn * normals[a]
+    end
+    return V
+end
+
+function accumulate_term!(V, term::NormalMotionTerm{<:FrontField}, state::FrontState{<:PointFront1D}, t)
+    normals = state.geom.vertex_normals
+    sv = term.speed.values
+    length(sv) == length(V) || error("NormalMotionTerm(PointFront1D): FrontField size mismatch.")
+    for a in eachindex(V)
+        V[a] = V[a] + sv[a] * normals[a]
+    end
+    return V
+end
+
+function accumulate_term!(V, term::NormalMotionTerm, state::FrontState{<:PointFront1D}, t)
+    normals = state.geom.vertex_normals
+    x       = state.mesh.x
+    n       = length(x)
+    for a in eachindex(V)
+        vn = _pointfront_scalar_value(term.speed, a, n)
+        V[a] = V[a] + vn * normals[a]
+    end
+    return V
+end
+
 function compute_cfl(term::NormalMotionTerm{<:Function}, state, t)
     h = front_spacing(state)
     pts = state.mesh.points
@@ -239,6 +350,34 @@ end
 function compute_cfl(term::NormalMotionTerm, state, t)
     h = front_spacing(state)
     max_speed = abs(term.speed)
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::NormalMotionTerm{<:Function}, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    x = state.mesh.x
+    max_speed = maximum(abs(_eval_speed(term.speed, x[a], t, state)) for a in eachindex(x))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::NormalMotionTerm{<:FrontField}, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    sv = term.speed.values
+    max_speed = maximum(abs(sv[a]) for a in eachindex(sv))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::NormalMotionTerm, state::FrontState{<:PointFront1D}, t)
+    h = front_spacing(state)
+    n = length(state.mesh.x)
+    if term.speed isa Number
+        max_speed = abs(term.speed)
+    else
+        max_speed = maximum(abs(_pointfront_scalar_value(term.speed, a, n)) for a in 1:n)
+    end
     max_speed < eps(typeof(h)) && return Inf
     return h / max_speed
 end
@@ -290,6 +429,9 @@ end
 
 function accumulate_term!(V, term::CurvatureMotionTerm, state, t)
     mesh = state.mesh
+    if mesh isa PointFront1D
+        error("CurvatureMotionTerm is not defined for PointFront1D")
+    end
     if mesh isa CurveMesh
         kappa   = state.geom.signed_curvature
         normals = state.geom.vertex_normals
@@ -325,6 +467,10 @@ function compute_cfl(term::CurvatureMotionTerm, state, t)
     end
     max_abs_beta < eps(typeof(h)) && return Inf
     return h^2 / (2 * max_abs_beta)
+end
+
+function compute_cfl(::CurvatureMotionTerm, ::FrontState{<:PointFront1D}, t)
+    error("CurvatureMotionTerm is not defined for PointFront1D")
 end
 
 # ─────────────────────────────────────────────────────────────────────────────

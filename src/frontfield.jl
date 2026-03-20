@@ -46,7 +46,7 @@ end
 
 function _frontfield_expected_length(mesh, location::Symbol)
     if location === :vertex
-        return length(mesh.points)
+        return _n_vertices(mesh)
     elseif location === :edge
         return _n_edges(mesh)
     elseif location === :face
@@ -56,10 +56,15 @@ function _frontfield_expected_length(mesh, location::Symbol)
     end
 end
 
+_n_vertices(mesh::CurveMesh)    = length(mesh.points)
+_n_vertices(mesh::SurfaceMesh)  = length(mesh.points)
+_n_vertices(mesh::PointFront1D) = length(mesh.x)
 _n_edges(mesh::CurveMesh)    = length(mesh.edges)
 _n_edges(mesh::SurfaceMesh)  = length(build_topology(mesh).edges)
+_n_edges(mesh::PointFront1D) = length(mesh.x) == 2 ? 1 : 0
 _n_faces(mesh::CurveMesh)    = length(mesh.edges)   # edges serve as "faces" for curves
 _n_faces(mesh::SurfaceMesh)  = length(mesh.faces)
+_n_faces(mesh::PointFront1D) = 0
 
 function _check_frontfield_size(values, mesh, location::Symbol)
     n_expected = _frontfield_expected_length(mesh, location)

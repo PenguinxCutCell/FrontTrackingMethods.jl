@@ -217,6 +217,49 @@ function _vertex_neighbors(mesh::SurfaceMesh, topo::MeshTopology)
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PointFront1D validity repair (not geometric redistribution)
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    repair_front!(state::FrontState{<:PointFront1D}; xminsep=0.0, clamp_small_gap=false)
+
+Validate and (optionally) minimally repair a `PointFront1D` state.
+
+- one marker: finite check only.
+- two markers: finite check + strict ordering `x[1] < x[2]`.
+- if `xminsep > 0` and gap is too small, either throw or clamp to `xminsep`
+  when `clamp_small_gap=true`.
+"""
+function repair_front!(
+    state::FrontState{<:PointFront1D};
+    xminsep::Real=0.0,
+    clamp_small_gap::Bool=false,
+)
+    mesh = state.mesh
+    x = copy(mesh.x)
+    all(isfinite, x) || error("repair_front!(PointFront1D): marker coordinates must be finite.")
+
+    if length(x) == 2
+        x[1] < x[2] ||
+            error("repair_front!(PointFront1D): crossed/invalid markers (need x[1] < x[2], got $(x[1]) and $(x[2])).")
+        if xminsep > 0
+            gap = x[2] - x[1]
+            if gap < xminsep
+                if clamp_small_gap
+                    x[2] = x[1] + xminsep
+                else
+                    error("repair_front!(PointFront1D): marker gap $gap is below xminsep=$xminsep.")
+                end
+            end
+        end
+    end
+
+    state.mesh = PointFront1D(x, mesh.interval_is_inside)
+    refresh_geometry!(state; rebuild_dec=false)
+    return state
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Public aliases
 # ─────────────────────────────────────────────────────────────────────────────
 

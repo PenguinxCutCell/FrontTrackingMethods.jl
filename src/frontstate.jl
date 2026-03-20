@@ -16,7 +16,7 @@ Mutable state object for a front-tracking simulation.
 Fields
 ------
 - `mesh   :: Union{CurveMesh,SurfaceMesh}` – current front mesh.
-- `geom   :: Union{CurveGeometry,SurfaceGeometry}` – current geometry.
+- `geom   :: Union{CurveGeometry,SurfaceGeometry,PointFront1DGeometry}` – current geometry.
 - `dec    :: Union{CurveDEC,SurfaceDEC,Nothing}` – optional DEC operators.
 - `t      :: Float64` – current simulation time.
 - `fields :: Dict{Symbol,Any}` – user-attached named fields (see `FrontField`).
@@ -26,7 +26,7 @@ Constructors
 ------------
     FrontState(mesh; t=0.0, fields=Dict(), build_dec=false)
 
-Builds a `FrontState` from a `CurveMesh` or `SurfaceMesh`.
+Builds a `FrontState` from a `CurveMesh`, `SurfaceMesh`, or `PointFront1D`.
 If `build_dec=true`, the DEC operators are assembled (required for
 `CurvatureMotionTerm` on surfaces).
 """
@@ -64,6 +64,16 @@ function FrontState(mesh::SurfaceMesh; t::Real=0.0, fields=Dict{Symbol,Any}(),
         mesh, geom, dec, Float64(t), Dict{Symbol,Any}(fields), cache)
 end
 
+function FrontState(mesh::PointFront1D; t::Real=0.0, fields=Dict{Symbol,Any}(),
+                    build_dec::Bool=false)
+    build_dec && error("FrontState(PointFront1D): DEC operators are not defined for PointFront1D.")
+    geom = compute_geometry(mesh)
+    dec  = nothing
+    cache = Dict{Symbol,Any}()
+    return FrontState{typeof(mesh), typeof(geom), typeof(dec)}(
+        mesh, geom, dec, Float64(t), Dict{Symbol,Any}(fields), cache)
+end
+
 # ── Accessors ─────────────────────────────────────────────────────────────────
 
 """
@@ -85,7 +95,7 @@ current_time(state::FrontState) = state.t
 
 Return a copy of the current vertex coordinate array.
 """
-vertex_coordinates(state::FrontState) = copy(state.mesh.points)
+vertex_coordinates(state::FrontState) = copy(front_markers(state.mesh))
 
 """
     set_vertex_coordinates!(state::FrontState, new_points)
@@ -100,6 +110,8 @@ function set_vertex_coordinates!(state::FrontState, new_points)
         state.mesh = CurveMesh(convert(typeof(mesh.points), new_points), mesh.edges)
     elseif mesh isa SurfaceMesh
         state.mesh = SurfaceMesh(convert(typeof(mesh.points), new_points), mesh.faces)
+    elseif mesh isa PointFront1D
+        state.mesh = PointFront1D(convert(typeof(mesh.x), collect(new_points)), mesh.interval_is_inside)
     else
         error("set_vertex_coordinates!: unsupported mesh type $(typeof(mesh))")
     end
@@ -132,9 +144,9 @@ end
 # ── show ──────────────────────────────────────────────────────────────────────
 
 function Base.show(io::IO, state::FrontState)
-    nv   = length(state.mesh.points)
+    nv   = nmarkers(state.mesh)
     mtyp = typeof(state.mesh)
-    print(io, "FrontState: $mtyp with $nv vertices, t = $(state.t)")
+    print(io, "FrontState: $mtyp with $nv markers, t = $(state.t)")
     if !isempty(state.fields)
         print(io, ", fields: $(collect(keys(state.fields)))")
     end

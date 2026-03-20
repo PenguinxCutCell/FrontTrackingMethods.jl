@@ -12,6 +12,8 @@ function front_spacing(state::FrontState)
         geom.edge_lengths
     elseif geom isa SurfaceGeometry
         geom.edge_lengths
+    elseif geom isa PointFront1DGeometry
+        geom.edge_lengths
     else
         error("front_spacing: unsupported geometry type $(typeof(geom))")
     end
@@ -33,6 +35,11 @@ function _zeros_like_points(mesh::SurfaceMesh{T}) where {T}
     return [zero(SVector{3,T}) for _ in eachindex(mesh.points)]
 end
 
+function _zeros_like_points(mesh::PointFront1D{T}) where {T<:Real}
+    U = float(T)
+    return fill(zero(U), length(mesh.x))
+end
+
 """
     _advance_coordinates(mesh, x0, V, dt) -> new_points
 
@@ -42,6 +49,12 @@ function _advance_coordinates(mesh, x0::Vector{S}, V::Vector{S}, dt::Real) where
     T = eltype(S)
     dt_T = T(dt)
     return [x0[a] + dt_T * V[a] for a in eachindex(x0)]
+end
+
+function _advance_coordinates(mesh::PointFront1D, x0::Vector{<:Real}, V::Vector{<:Real}, dt::Real)
+    U = promote_type(float(eltype(x0)), float(eltype(V)), Float64)
+    dt_u = U(dt)
+    return [U(x0[a]) + dt_u * U(V[a]) for a in eachindex(x0)]
 end
 
 """
@@ -57,3 +70,13 @@ _replace_mesh(mesh::CurveMesh, new_points) = CurveMesh(new_points, mesh.edges)
 Create a new SurfaceMesh with `new_points` but the same connectivity.
 """
 _replace_mesh(mesh::SurfaceMesh, new_points) = SurfaceMesh(new_points, mesh.faces)
+
+"""
+    _replace_mesh(mesh::PointFront1D, new_points) -> PointFront1D
+
+Create a new PointFront1D with updated marker positions while preserving
+inside/outside convention.
+"""
+function _replace_mesh(mesh::PointFront1D, new_points)
+    return PointFront1D(collect(new_points), mesh.interval_is_inside)
+end

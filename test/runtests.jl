@@ -245,6 +245,7 @@ end
 
 include("test_frontfield.jl")
 include("test_frontstate.jl")
+include("test_pointfront1d.jl")
 include("test_advection_terms.jl")
 include("test_normal_motion.jl")
 include("test_curvature_motion.jl")
@@ -269,4 +270,3 @@ else
 end
 
 println("All FrontTrackingMethods tests passed.")
-

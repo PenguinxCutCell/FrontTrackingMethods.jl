@@ -12,6 +12,7 @@
 # * For `SurfaceMesh`: `compute_geometry` gives normals and areas; the DEC
 #   (cotan Laplacian) must also be rebuilt whenever curvature-driven motion is
 #   active, because the cotan weights change with vertex positions.
+# * For `PointFront1D`: only marker positions and interface normals are cached.
 # * Connectivity (edges, face-edge incidence) is NOT rebuilt here because
 #   v0.1 has fixed connectivity.
 

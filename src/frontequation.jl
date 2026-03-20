@@ -34,7 +34,7 @@ Constructors
                     redistributor=nothing, transfer=nothing,
                     fields=nothing, build_dec=false)
 
-where `front` is a `CurveMesh`, `SurfaceMesh`, or an existing `FrontState`.
+where `front` is a `CurveMesh`, `SurfaceMesh`, `PointFront1D`, or an existing `FrontState`.
 `build_dec=true` is required for `CurvatureMotionTerm` on surfaces.
 """
 mutable struct FrontEquation
@@ -70,7 +70,7 @@ function FrontEquation(;
     state = if front isa FrontState
         front.t = Float64(t)
         front
-    elseif front isa CurveMesh || front isa SurfaceMesh
+    elseif is_supported_front(front)
         st = FrontState(front; t=t, build_dec=build_dec)
         # attach user-provided fields
         if fields !== nothing
@@ -80,7 +80,7 @@ function FrontEquation(;
         end
         st
     else
-        error("FrontEquation: `front` must be a CurveMesh, SurfaceMesh, or FrontState.")
+        error("FrontEquation: `front` must be a CurveMesh, SurfaceMesh, PointFront1D, or FrontState.")
     end
 
     # Preallocate velocity buffer
@@ -124,7 +124,7 @@ end
 # Return a fresh velocity buffer of the right size/type for `state`.
 function _get_vel_buf(eq::FrontEquation, state::FrontState)
     buf = eq.buffers.vel
-    if length(buf) == length(state.mesh.points)
+    if length(buf) == nmarkers(state.mesh)
         return buf
     else
         # Re-allocate if front size changed (edge case; normally fixed)
@@ -163,11 +163,8 @@ function _step_rk2!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
     k2 = copy(V)
 
     # Final: x_new = x0 + (dt/2) * (k1 + k2)
-    T = eltype(eltype(x0))
-    half_dt = T(dt) / 2
-    k_avg = [half_dt * (k1[a] + k2[a]) / T(dt) * T(dt) for a in eachindex(k1)]
-    # equivalently: x0 + (dt/2)*(k1+k2)
-    new_pts = [x0[a] + T(dt)/2 * (k1[a] + k2[a]) for a in eachindex(x0)]
+    dt_half = dt / 2
+    new_pts = [x0[a] + dt_half * (k1[a] + k2[a]) for a in eachindex(x0)]
     state.mesh = _replace_mesh(state.mesh, new_pts)
     refresh_geometry!(state)
 end
@@ -175,8 +172,6 @@ end
 function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float64)
     V  = _get_vel_buf(eq, state)
     x0 = vertex_coordinates(state)
-    T  = eltype(eltype(x0))
-    dt_T = T(dt)
 
     # Stage 1: k1 = f(x0, t)
     compute_rhs!(V, eq.terms, state, t)
@@ -191,7 +186,7 @@ function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
     k2 = copy(V)
 
     # x2 = (3/4)*x0 + (1/4)*x1 + (1/4)*dt*k2
-    new_pts2 = [T(3)/4 * x0[a] + T(1)/4 * x1[a] + T(1)/4 * dt_T * k2[a]
+    new_pts2 = [0.75 * x0[a] + 0.25 * x1[a] + 0.25 * dt * k2[a]
                 for a in eachindex(x0)]
     state.mesh = _replace_mesh(state.mesh, new_pts2)
     refresh_geometry!(state)
@@ -202,7 +197,7 @@ function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
 
     # x_new = (1/3)*x0 + (2/3)*x2 + (2/3)*dt*k3
     x2 = vertex_coordinates(state)
-    new_pts = [T(1)/3 * x0[a] + T(2)/3 * x2[a] + T(2)/3 * dt_T * k3[a]
+    new_pts = [x0[a] / 3 + (2 / 3) * x2[a] + (2 / 3) * dt * k3[a]
                for a in eachindex(x0)]
     state.mesh = _replace_mesh(state.mesh, new_pts)
     refresh_geometry!(state)

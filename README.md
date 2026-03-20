@@ -55,6 +55,7 @@ println("centroid: ", sum(state.mesh.points) / length(state.mesh.points))
 |---------|--------|-------|
 | Closed 2-D curves (`CurveMesh`) | ✅ Stable | |
 | Closed 3-D surfaces (`SurfaceMesh`) | ✅ Stable | |
+| Minimal 1-D point fronts (`PointFront1D`) | ✅ Stable | one marker or two-marker interval |
 | `AdvectionTerm` (prescribed velocity) | ✅ Stable | constant, function, or `FrontField` |
 | `NormalMotionTerm` (scalar normal speed) | ✅ Stable | |
 | `CurvatureMotionTerm` (mean-curvature flow) | ✅ Stable | explicit only |
@@ -74,6 +75,27 @@ println("centroid: ", sum(state.mesh.points) / length(state.mesh.points))
 | Topology change / remeshing | ❌ Not in v0.2 | planned for v0.3 |
 | Contact / collision handling | ❌ Not in v0.2 | |
 | Cut-cell bulk coupling | ❌ Out of scope | |
+
+## Minimal 1-D support (`PointFront1D`)
+
+`FrontTrackingMethods.jl` supports a minimal 1-D path using
+`PointFront1D` from `FrontIntrinsicOps.jl`:
+
+- one marker, or
+- two markers defining an interval.
+
+Supported with the standard workflow (`FrontEquation` + `integrate!`) for:
+
+- `AdvectionTerm`,
+- `NormalMotionTerm`,
+- `ForwardEuler`, `RK2`, `RK3`.
+
+Limitations:
+
+- `CurvatureMotionTerm` is not defined for `PointFront1D`,
+- no remeshing / equal-arc redistribution in 1-D,
+- only invariant repair (`repair_front!`) for marker validity/order,
+- no topology change or contact handling.
 
 ## v0.2 Benchmark Gallery
 
