@@ -73,6 +73,18 @@ function _apply_axis_limits!(ax; xlims=nothing, ylims=nothing, zlims=nothing)
     return ax
 end
 
+function _apply_axis3_view!(ax; azimuth=nothing, elevation=nothing)
+    if ax isa Makie.Axis3
+        if azimuth !== nothing && hasproperty(ax, :azimuth)
+            ax.azimuth[] = deg2rad(Float64(azimuth))
+        end
+        if elevation !== nothing && hasproperty(ax, :elevation)
+            ax.elevation[] = deg2rad(Float64(elevation))
+        end
+    end
+    return ax
+end
+
 function _figure_axis_2d(; figure=nothing, axis=nothing, title=nothing)
     if axis !== nothing
         if title !== nothing
@@ -85,15 +97,28 @@ function _figure_axis_2d(; figure=nothing, axis=nothing, title=nothing)
     return fig, ax
 end
 
-function _figure_axis_3d(; figure=nothing, axis=nothing, title=nothing)
+function _figure_axis_3d(; figure=nothing, axis=nothing, title=nothing, azimuth=nothing, elevation=nothing)
     if axis !== nothing
         if title !== nothing
             axis.title = title
         end
+        _apply_axis3_view!(axis; azimuth=azimuth, elevation=elevation)
         return figure === nothing ? axis.figure : figure, axis
     end
     fig = figure === nothing ? Makie.Figure() : figure
-    ax = Makie.Axis3(fig[1, 1]; title=title === nothing ? "" : title, xlabel="x", ylabel="y", zlabel="z")
+    axis_kwargs = (
+        title=title === nothing ? "" : title,
+        xlabel="x",
+        ylabel="y",
+        zlabel="z",
+    )
+    if azimuth !== nothing
+        axis_kwargs = merge(axis_kwargs, (azimuth=deg2rad(Float64(azimuth)),))
+    end
+    if elevation !== nothing
+        axis_kwargs = merge(axis_kwargs, (elevation=deg2rad(Float64(elevation)),))
+    end
+    ax = Makie.Axis3(fig[1, 1]; axis_kwargs...)
     return fig, ax
 end
 
@@ -124,9 +149,11 @@ function _plot_surface_direct(mesh::FIO.SurfaceMesh;
     color=:royalblue,
     wireframe::Bool=false,
     show_vertices::Bool=false,
+    azimuth=nothing,
+    elevation=nothing,
     kwargs...,
 )
-    fig, ax = _figure_axis_3d(; figure=figure, axis=axis, title=title)
+    fig, ax = _figure_axis_3d(; figure=figure, axis=axis, title=title, azimuth=azimuth, elevation=elevation)
     clear_axis && _clear_axis_keep_decorations!(ax)
     gb = _surface_geometrybasics_mesh(mesh)
     p = Makie.mesh!(ax, gb; color=color, kwargs...)
@@ -137,6 +164,7 @@ function _plot_surface_direct(mesh::FIO.SurfaceMesh;
         pts = [Makie.Point3f(q[1], q[2], q[3]) for q in mesh.points]
         Makie.scatter!(ax, pts; color=:black, markersize=4)
     end
+    _apply_axis3_view!(ax; azimuth=azimuth, elevation=elevation)
     return fig, ax, p
 end
 
@@ -205,6 +233,8 @@ function FTM.plot_front(mesh::FIO.SurfaceMesh;
     xlims=nothing,
     ylims=nothing,
     zlims=nothing,
+    azimuth=nothing,
+    elevation=nothing,
     kwargs...,
 )
     fig, ax, p = if _fio_has_makie_ext()
@@ -214,8 +244,10 @@ function FTM.plot_front(mesh::FIO.SurfaceMesh;
     else
         _plot_surface_direct(mesh;
             figure=figure, axis=axis, clear_axis=clear_axis, title=title,
-            color=color, wireframe=wireframe, show_vertices=show_vertices, kwargs...)
+            color=color, wireframe=wireframe, show_vertices=show_vertices,
+            azimuth=azimuth, elevation=elevation, kwargs...)
     end
+    _apply_axis3_view!(ax; azimuth=azimuth, elevation=elevation)
     _apply_axis_limits!(ax; xlims=xlims, ylims=ylims, zlims=zlims)
     return fig, ax, p
 end
