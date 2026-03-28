@@ -31,3 +31,37 @@ Examples that evolve fronts now use `CairoMakie` and write outputs under:
 
 Examples are intentionally small; for longer convergence or benchmarking
 scripts see the `test/` harness and the `benchmark_*.jl` helpers in `src/`.
+
+## Visual gallery from examples/output
+
+The docs build mirrors `examples/output/` into `docs/src/assets/generated/examples_output/`.
+The images below are read directly from those generated assets.
+
+### rotate_circle
+
+![rotate_circle initial](assets/generated/examples_output/rotate_circle/initial.png)
+![rotate_circle final](assets/generated/examples_output/rotate_circle/final.png)
+
+Video: [rotate_circle animation.mp4](assets/generated/examples_output/rotate_circle/animation.mp4)
+
+### zalesak_disk_rotation
+
+![zalesak_disk_rotation initial](assets/generated/examples_output/zalesak_disk_rotation/initial.png)
+![zalesak_disk_rotation final](assets/generated/examples_output/zalesak_disk_rotation/final.png)
+
+Video: [zalesak_disk_rotation animation.mp4](assets/generated/examples_output/zalesak_disk_rotation/animation.mp4)
+
+### enright_deformation_3d
+
+![enright_deformation_3d initial](assets/generated/examples_output/enright_deformation_3d/initial.png)
+![enright_deformation_3d final](assets/generated/examples_output/enright_deformation_3d/final.png)
+
+Video: [enright_deformation_3d animation.mp4](assets/generated/examples_output/enright_deformation_3d/animation.mp4)
+
+### oscillating_drop_2d
+
+![oscillating_drop_2d initial](assets/generated/examples_output/oscillating_drop_2d/initial.png)
+![oscillating_drop_2d final](assets/generated/examples_output/oscillating_drop_2d/final.png)
+![oscillating_drop_2d diagnostic plot](assets/generated/examples_output/oscillating_drop_2d/plot.png)
+
+Video: [oscillating_drop_2d animation.mp4](assets/generated/examples_output/oscillating_drop_2d/animation.mp4)

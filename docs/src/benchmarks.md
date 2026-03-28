@@ -118,3 +118,31 @@ example scripts in `examples/`.
 - quality over time (minimum triangle angle, degenerate-triangle fraction)
 **Which metric to check first:** for Enright, check symmetric Hausdorff (shape recovery) first, then volume drift, then quality-over-time.  
 **Note:** surface remeshing is often helpful but remains experimental; benchmark studies should compare remeshing-enabled and no-remeshing runs.
+
+---
+
+## Visual outputs from benchmark/output
+
+The docs build mirrors `benchmark/output/` into `docs/src/assets/generated/benchmark_output/`.
+Use these plots and snapshots as quick references for expected behavior.
+
+### Convergence plots
+
+![single_vortex convergence](assets/generated/benchmark_output/convergence/single_vortex_circle_convergence.png)
+![solid_body_rotation convergence](assets/generated/benchmark_output/convergence/solid_body_rotation_circle_convergence.png)
+![translation convergence](assets/generated/benchmark_output/convergence/translation_circle_convergence.png)
+![zalesak_disk convergence](assets/generated/benchmark_output/convergence/zalesak_disk_rotation_convergence.png)
+
+### Single-vortex benchmark snapshots
+
+![single_vortex initial](assets/generated/benchmark_output/single_vortex_circle/initial.png)
+![single_vortex final](assets/generated/benchmark_output/single_vortex_circle/final.png)
+
+Video: [single_vortex_circle animation.mp4](assets/generated/benchmark_output/single_vortex_circle/animation.mp4)
+
+### Raw benchmark tables
+
+- [advection_errors.csv](assets/generated/benchmark_output/advection_errors.csv)
+- [enright3d_remeshing_study.csv](assets/generated/benchmark_output/enright3d_remeshing_study.csv)
+- [sphere_rigid_study.csv](assets/generated/benchmark_output/sphere_rigid_study.csv)
+- [zalesak_sphere_study.csv](assets/generated/benchmark_output/zalesak_sphere_study.csv)
