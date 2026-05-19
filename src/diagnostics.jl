@@ -82,7 +82,7 @@ end
 edge_length_spread(state::FrontState{<:PointFront1D}) = 1.0
 
 """
-    front_enclosed_measure(state::FrontState) -> Float64
+    front_enclosed_measure(state::FrontState; correction=:none) -> Float64
 
 Compute the enclosed measure (area for curves, volume for surfaces)
 using FrontIntrinsicOps.
@@ -90,17 +90,27 @@ using FrontIntrinsicOps.
 Returns the shoelace area for a closed `CurveMesh` or the divergence-
 theorem volume for a closed `SurfaceMesh`.
 """
-function front_enclosed_measure(state::FrontState)
+function front_enclosed_measure(state::FrontState; correction::Symbol=:none)
+    if state.mesh isa CurveMesh
+        return enclosed_measure(state.mesh; correction=correction)
+    end
+    correction === :none ||
+        error("front_enclosed_measure: correction=$(repr(correction)) is only defined for CurveMesh.")
     return enclosed_measure(state.mesh)
 end
 
 """
-    front_measure(state::FrontState) -> Float64
+    front_measure(state::FrontState; correction=:none) -> Float64
 
 Return the total intrinsic measure of the front (arc-length for curves,
 surface area for surfaces).
 """
-function front_measure(state::FrontState)
+function front_measure(state::FrontState; correction::Symbol=:none)
+    if state.mesh isa CurveMesh
+        return measure(state.mesh, state.geom; correction=correction)
+    end
+    correction === :none ||
+        error("front_measure: correction=$(repr(correction)) is only defined for CurveMesh.")
     return measure(state.mesh, state.geom)
 end
 

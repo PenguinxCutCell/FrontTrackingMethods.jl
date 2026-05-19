@@ -2,9 +2,10 @@
 #
 # Three physical motion terms mirror the LevelSetMethods API:
 #
-#   AdvectionTerm        – prescribed vector velocity  u(x, t)
-#   NormalMotionTerm     – prescribed scalar normal speed  Vn(x, t)
-#   CurvatureMotionTerm  – coefficient * mean-curvature-normal vector
+#   AdvectionTerm          – prescribed vector velocity  u(x, t)
+#   ProjectedAdvectionTerm – normal projection of prescribed velocity
+#   NormalMotionTerm       – prescribed scalar normal speed  Vn(x, t)
+#   CurvatureMotionTerm    – coefficient * mean-curvature-normal vector
 #
 # General vertex evolution:
 #   dx_a/dt = u_adv(x_a, t) + Vn(x_a, t) * n_a + β(x_a, t) * Hn_a
@@ -232,6 +233,114 @@ function compute_cfl(term::AdvectionTerm, state::FrontState{<:PointFront1D}, t)
     end
     max_speed < eps(typeof(h)) && return Inf
     return h / max_speed
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ProjectedAdvectionTerm
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    ProjectedAdvectionTerm(velocity[, update_func])
+
+Prescribed vector advection projected onto the front normal:
+
+    dx/dt = (u(x,t) ⋅ n) n
+
+This removes tangential marker drift from a vector velocity field and leaves
+parametrization control to a redistributor.
+
+`velocity` accepts the same forms as `AdvectionTerm`:
+- A function `(x, t, state) -> SVector` evaluated at each vertex.
+- A vector-valued `FrontField` at vertices.
+- A constant vector.
+
+`update_func`, if provided, is called as `update_func(velocity, state, t)`.
+"""
+struct ProjectedAdvectionTerm{V,F} <: AbstractFrontTerm
+    velocity    :: V
+    update_func :: F
+end
+
+ProjectedAdvectionTerm(vel) = ProjectedAdvectionTerm(vel, (v, s, t) -> nothing)
+
+velocity(term::ProjectedAdvectionTerm)     = term.velocity
+update_func(term::ProjectedAdvectionTerm)  = term.update_func
+
+Base.show(io::IO, ::ProjectedAdvectionTerm) =
+    print(io, "ProjectedAdvectionTerm (dx/dt = (u⋅n)n)")
+
+function update_term!(term::ProjectedAdvectionTerm, state, t)
+    term.update_func(term.velocity, state, t)
+    return nothing
+end
+
+@inline function _projected_velocity(u, n)
+    return dot(u, n) * n
+end
+
+function accumulate_term!(V, term::ProjectedAdvectionTerm{<:Function}, state, t)
+    pts = state.mesh.points
+    normals = state.geom.vertex_normals
+    for a in eachindex(pts)
+        u = term.velocity(pts[a], t, state)
+        V[a] = V[a] + _projected_velocity(u, normals[a])
+    end
+    return V
+end
+
+function accumulate_term!(V, term::ProjectedAdvectionTerm{<:FrontField}, state, t)
+    fv = term.velocity.values
+    normals = state.geom.vertex_normals
+    length(fv) == length(V) || error("ProjectedAdvectionTerm: FrontField size mismatch.")
+    for a in eachindex(V)
+        V[a] = V[a] + _projected_velocity(fv[a], normals[a])
+    end
+    return V
+end
+
+function accumulate_term!(V, term::ProjectedAdvectionTerm, state, t)
+    vel = term.velocity
+    normals = state.geom.vertex_normals
+    for a in eachindex(V)
+        V[a] = V[a] + _projected_velocity(vel, normals[a])
+    end
+    return V
+end
+
+function accumulate_term!(V, ::ProjectedAdvectionTerm, ::FrontState{<:PointFront1D}, t)
+    error("ProjectedAdvectionTerm is not defined for PointFront1D.")
+end
+
+function compute_cfl(term::ProjectedAdvectionTerm{<:Function}, state, t)
+    h = front_spacing(state)
+    pts = state.mesh.points
+    normals = state.geom.vertex_normals
+    max_speed = maximum(abs(dot(term.velocity(pts[a], t, state), normals[a]))
+                        for a in eachindex(pts))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::ProjectedAdvectionTerm{<:FrontField}, state, t)
+    h = front_spacing(state)
+    fv = term.velocity.values
+    normals = state.geom.vertex_normals
+    length(fv) == length(normals) || error("ProjectedAdvectionTerm: FrontField size mismatch.")
+    max_speed = maximum(abs(dot(fv[a], normals[a])) for a in eachindex(fv))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(term::ProjectedAdvectionTerm, state, t)
+    h = front_spacing(state)
+    normals = state.geom.vertex_normals
+    max_speed = maximum(abs(dot(term.velocity, normals[a])) for a in eachindex(normals))
+    max_speed < eps(typeof(h)) && return Inf
+    return h / max_speed
+end
+
+function compute_cfl(::ProjectedAdvectionTerm, ::FrontState{<:PointFront1D}, t)
+    error("ProjectedAdvectionTerm is not defined for PointFront1D.")
 end
 
 # ─────────────────────────────────────────────────────────────────────────────

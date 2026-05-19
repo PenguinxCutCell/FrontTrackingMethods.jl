@@ -220,14 +220,14 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 
 """
-    relative_area_error(mesh::CurveMesh, mesh_ref::CurveMesh) -> Float64
+    relative_area_error(mesh::CurveMesh, mesh_ref::CurveMesh; correction=:none) -> Float64
 
 Relative difference in enclosed area between `mesh` and `mesh_ref`.
 Returns `(area - area_ref) / area_ref`.
 """
-function relative_area_error(mesh::CurveMesh, mesh_ref::CurveMesh)
-    A     = enclosed_measure(mesh)
-    A_ref = enclosed_measure(mesh_ref)
+function relative_area_error(mesh::CurveMesh, mesh_ref::CurveMesh; correction::Symbol=:none)
+    A     = enclosed_measure(mesh; correction=correction)
+    A_ref = enclosed_measure(mesh_ref; correction=correction)
     abs(A_ref) < eps(Float64) && return abs(A)
     return (A - A_ref) / A_ref
 end
@@ -257,16 +257,16 @@ function centroid_error(meshA, meshB)
 end
 
 """
-    perimeter_error(mesh::CurveMesh, mesh_ref::CurveMesh) -> Float64
+    perimeter_error(mesh::CurveMesh, mesh_ref::CurveMesh; correction=:none) -> Float64
 
 Relative difference in arc-length (perimeter) between `mesh` and `mesh_ref`.
 Returns `(L - L_ref) / L_ref`.
 """
-function perimeter_error(mesh::CurveMesh, mesh_ref::CurveMesh)
+function perimeter_error(mesh::CurveMesh, mesh_ref::CurveMesh; correction::Symbol=:none)
     geom     = compute_geometry(mesh)
     geom_ref = compute_geometry(mesh_ref)
-    L     = sum(geom.edge_lengths)
-    L_ref = sum(geom_ref.edge_lengths)
+    L     = measure(mesh, geom; correction=correction)
+    L_ref = measure(mesh_ref, geom_ref; correction=correction)
     abs(L_ref) < eps(Float64) && return abs(L)
     return (L - L_ref) / L_ref
 end

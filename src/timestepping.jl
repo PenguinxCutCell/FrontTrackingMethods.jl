@@ -40,6 +40,32 @@ end
 RK3(; cfl::Real=1.0) = RK3(Float64(cfl))
 
 """
+    DiffEqIntegrator(algorithm; cfl=0.8, kwargs...)
+
+Adaptive OrdinaryDiffEq.jl-backed time integrator.
+
+`algorithm` is an OrdinaryDiffEq algorithm object, for example `Tsit5()`.
+Extra keyword arguments are forwarded to `OrdinaryDiffEq.solve`, so users can
+set tolerances such as `abstol` and `reltol`.
+
+This is a weak-extension integrator. Load OrdinaryDiffEq before using it:
+
+```julia
+using OrdinaryDiffEq
+integrator = DiffEqIntegrator(Tsit5(); abstol=1e-10, reltol=1e-10)
+```
+"""
+struct DiffEqIntegrator{A,K} <: TimeIntegrator
+    algorithm :: A
+    cfl       :: Float64
+    kwargs    :: K
+end
+
+function DiffEqIntegrator(algorithm; cfl::Real=0.8, kwargs...)
+    return DiffEqIntegrator(algorithm, Float64(cfl), (; kwargs...))
+end
+
+"""
     cfl(integrator::TimeIntegrator) -> Float64
 
 Return the CFL safety factor of the integrator.
@@ -47,7 +73,10 @@ Return the CFL safety factor of the integrator.
 cfl(integ::ForwardEuler) = integ.cfl
 cfl(integ::RK2)          = integ.cfl
 cfl(integ::RK3)          = integ.cfl
+cfl(integ::DiffEqIntegrator) = integ.cfl
 
 Base.show(io::IO, ::ForwardEuler) = print(io, "ForwardEuler")
 Base.show(io::IO, ::RK2)          = print(io, "RK2 (Heun)")
 Base.show(io::IO, ::RK3)          = print(io, "RK3 (Shu-Osher TVD)")
+Base.show(io::IO, integ::DiffEqIntegrator) =
+    print(io, "DiffEqIntegrator ($(typeof(integ.algorithm)))")

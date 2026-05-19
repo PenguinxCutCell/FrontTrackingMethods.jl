@@ -13,8 +13,14 @@ v0.2 supports:
 - Prescribed vector advection (`AdvectionTerm`), prescribed normal motion
   (`NormalMotionTerm`), and curvature-driven motion (`CurvatureMotionTerm`).
 - Fixed-connectivity vertex motion (no topology change).
+- Normal-projected vector advection (`ProjectedAdvectionTerm`) for operator
+  splitting between physical normal motion and mesh-quality redistribution.
 - Forward-Euler, RK2, and RK3 time integrators.
 - Equal-arclength redistribution on curves (`CurveEqualArcRedistributor`).
+- Poisson-potential tangential redistribution on curves and surfaces
+  (`PoissonTangentialRedistributor`).
+- Optional adaptive OrdinaryDiffEq.jl integration (`DiffEqIntegrator`) through
+  a weak extension.
 - Adaptive tangential curve remeshing with corner protection (`AdaptiveCurveRemesher`).
 - Experimental tangential redistribution on surfaces (`SurfaceTangentialRedistributor`,
   `ExperimentalSurfaceRemesher`).
@@ -81,13 +87,16 @@ export
     FrontState,
     FrontEquation,
     AdvectionTerm,
+    ProjectedAdvectionTerm,
     NormalMotionTerm,
     CurvatureMotionTerm,
     ForwardEuler,
     RK2,
     RK3,
+    DiffEqIntegrator,
     NoRedistribution,
     CurveEqualArcRedistributor,
+    PoissonTangentialRedistributor,
     SurfaceTangentialRedistributor,
     AdaptiveCurveRemesher,
     ExperimentalSurfaceRemesher,

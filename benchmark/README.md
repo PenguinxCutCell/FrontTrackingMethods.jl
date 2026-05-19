@@ -183,4 +183,28 @@ $$
 | 10 | 1228 |
 | 11 | 2460 |
 
+## Intern curve algorithm benchmark consolidation
+
+`intern_curve_benchmarks.jl` consolidates the useful 2-D curve cases from
+Thomas' prototype scripts into one headless CSV-producing driver:
+
+- static circle convergence: Menger curvature, normal estimators,
+  chord vs arc-corrected area/perimeter
+- static ellipse convergence: variable-curvature accuracy, normal estimators,
+  form error
+- Poisson tangential redistribution on a clustered circle
+- projected rigid-rotation workflow:
+  `ProjectedAdvectionTerm + PoissonTangentialRedistributor`
+
+Run:
+
+`julia --project=. benchmark/intern_curve_benchmarks.jl`
+
+The output CSV is written to:
+
+`benchmark/output/intern_curve_benchmarks.csv`
+
+Columns use the standardized metric names:
+`E_A_shoe`, `E_A_arc`, `E_P_chord`, `E_P_arc`, `E_kappa_inf`, `E_kappa_2`,
+`E_n_bisector`, `E_n_osculating`, `E_n_laplacian`, `E_form`, and `uniformity`.
 

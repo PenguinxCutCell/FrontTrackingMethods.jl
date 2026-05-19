@@ -12,7 +12,7 @@ abstract type AbstractFrontTerm end
     TimeIntegrator
 
 Abstract supertype for time integration schemes.
-Concrete subtypes: `ForwardEuler`, `RK2`, `RK3`.
+Concrete subtypes: `ForwardEuler`, `RK2`, `RK3`, `DiffEqIntegrator`.
 """
 abstract type TimeIntegrator end
 

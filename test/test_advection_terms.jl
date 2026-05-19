@@ -67,3 +67,41 @@ end
         @test p[2] ≈ p0[2] + 1.0  atol=1e-10
     end
 end
+
+@testset "ProjectedAdvectionTerm – rigid rotation has zero normal velocity" begin
+    mesh0 = make_circle_curve(R=1.0, N=64, center=SVector(0.0, 0.0))
+    u = (x, t, state) -> SVector(-x[2], x[1])
+    eq = FrontEquation(; terms=ProjectedAdvectionTerm(u), front=mesh0, integrator=RK2())
+    integrate!(eq, 0.5; dt=0.05)
+
+    pts = current_state(eq).mesh.points
+    for (p, p0) in zip(pts, mesh0.points)
+        @test norm(p - p0) < 1e-12
+    end
+end
+
+@testset "ProjectedAdvectionTerm – FrontField and constant velocity modes" begin
+    mesh0 = make_circle_curve(R=1.0, N=32)
+    state = FrontState(mesh0)
+    normals = state.geom.vertex_normals
+
+    field = FrontField(copy(normals), mesh0, :vertex)
+    V = [zero(SVector{2,Float64}) for _ in mesh0.points]
+    FrontTrackingMethods.accumulate_term!(V, ProjectedAdvectionTerm(field), state, 0.0)
+    for i in eachindex(V)
+        @test norm(V[i] - normals[i]) < 1e-12
+    end
+
+    fill!(V, zero(SVector{2,Float64}))
+    FrontTrackingMethods.accumulate_term!(V, ProjectedAdvectionTerm(SVector(1.0, 0.0)), state, 0.0)
+    for i in eachindex(V)
+        @test abs(dot(V[i], normals[i]) - dot(SVector(1.0, 0.0), normals[i])) < 1e-12
+        @test norm(V[i] - dot(SVector(1.0, 0.0), normals[i]) * normals[i]) < 1e-12
+    end
+end
+
+@testset "ProjectedAdvectionTerm – PointFront1D rejected" begin
+    front = PointFront1D([0.0])
+    eq = FrontEquation(; terms=ProjectedAdvectionTerm(1.0), front=front)
+    @test_throws ErrorException integrate!(eq, 0.1; dt=0.01)
+end

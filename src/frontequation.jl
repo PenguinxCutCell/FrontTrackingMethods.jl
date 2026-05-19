@@ -203,9 +203,55 @@ function _step_rk3!(eq::FrontEquation, state::FrontState, t::Float64, dt::Float6
     refresh_geometry!(state)
 end
 
+function _step_integrator!(
+    eq::FrontEquation,
+    state::FrontState,
+    t::Float64,
+    dt::Float64,
+    ::ForwardEuler,
+)
+    return _step_fe!(eq, state, t, dt)
+end
+
+function _step_integrator!(
+    eq::FrontEquation,
+    state::FrontState,
+    t::Float64,
+    dt::Float64,
+    ::RK2,
+)
+    return _step_rk2!(eq, state, t, dt)
+end
+
+function _step_integrator!(
+    eq::FrontEquation,
+    state::FrontState,
+    t::Float64,
+    dt::Float64,
+    ::RK3,
+)
+    return _step_rk3!(eq, state, t, dt)
+end
+
+function _step_integrator!(
+    eq::FrontEquation,
+    state::FrontState,
+    t::Float64,
+    dt::Float64,
+    integ::TimeIntegrator,
+)
+    if integ isa DiffEqIntegrator
+        error("DiffEqIntegrator requires OrdinaryDiffEq.jl to be loaded. " *
+              "Run `using OrdinaryDiffEq` before calling integrate! with this integrator.")
+    end
+    error("integrate!: unsupported integrator $(typeof(integ))")
+end
+
 # ─────────────────────────────────────────────────────────────────────────────
 # integrate!
 # ─────────────────────────────────────────────────────────────────────────────
+
+redistribution_interval(r) = 1
 
 """
     integrate!(eq::FrontEquation, tf;
@@ -254,23 +300,14 @@ function integrate!(
         dt_use > 0 || break
 
         # ── take one step ────────────────────────────────────────────────────
-        integ = eq.integrator
-        if integ isa ForwardEuler
-            _step_fe!(eq, state, t, dt_use)
-        elseif integ isa RK2
-            _step_rk2!(eq, state, t, dt_use)
-        elseif integ isa RK3
-            _step_rk3!(eq, state, t, dt_use)
-        else
-            error("integrate!: unsupported integrator $(typeof(integ))")
-        end
+        _step_integrator!(eq, state, t, dt_use, eq.integrator)
 
         t      += dt_use
         state.t = t
         step   += 1
 
         # ── optional redistribution ─────────────────────────────────────────
-        if eq.redistributor !== nothing
+        if eq.redistributor !== nothing && step % redistribution_interval(eq.redistributor) == 0
             redistribute!(state, eq.redistributor)
         end
 

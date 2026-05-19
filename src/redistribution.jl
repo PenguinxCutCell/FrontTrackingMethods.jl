@@ -60,6 +60,7 @@ struct CurveEqualArcRedistributor <: AbstractRedistributor
     every :: Int
 end
 CurveEqualArcRedistributor(; every::Int=1) = CurveEqualArcRedistributor(every)
+redistribution_interval(r::CurveEqualArcRedistributor) = max(r.every, 1)
 
 function redistribute!(state::FrontState, r::CurveEqualArcRedistributor)
     mesh = state.mesh
@@ -134,6 +135,246 @@ function _equal_arc_redistribute!(state::FrontState)
     end
 
     state.mesh = _replace_mesh(mesh, pts_out)
+    refresh_geometry!(state)
+    return state
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PoissonTangentialRedistributor
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    PoissonTangentialRedistributor(;
+        omega=1.0,
+        pseudo_dt=0.2,
+        iterations=1,
+        every=1,
+        pin_vertex=1,
+        max_step_fraction=0.25,
+    )
+
+Poisson-potential tangential redistribution for closed curves and surfaces.
+
+The redistributor solves a pinned scalar Poisson problem on the current front.
+For curves it uses the finite-volume/DEC form `K * psi = M0 * b`, converts the
+potential to edge tangential speeds, removes mean drift, and averages edge
+speeds back to vertices.  For surfaces it applies the analogous surface
+stiffness solve and moves vertices by the projected negative potential gradient.
+
+Parameters
+----------
+- `omega` – source strength.
+- `pseudo_dt` – pseudo-time multiplier for each redistribution iteration.
+- `iterations` – number of Poisson redistribution passes per call.
+- `every` – apply only every `every` accepted time steps when used in `integrate!`.
+- `pin_vertex` – vertex used to remove the constant nullspace from the solve.
+- `max_step_fraction` – cap each pseudo-step relative to mean edge length.
+"""
+struct PoissonTangentialRedistributor <: AbstractRedistributor
+    omega             :: Float64
+    pseudo_dt         :: Float64
+    iterations        :: Int
+    every             :: Int
+    pin_vertex        :: Int
+    max_step_fraction :: Float64
+end
+
+function PoissonTangentialRedistributor(;
+    omega             :: Real = 1.0,
+    pseudo_dt         :: Real = 0.2,
+    iterations        :: Int  = 1,
+    every             :: Int  = 1,
+    pin_vertex        :: Int  = 1,
+    max_step_fraction :: Real = 0.25,
+)
+    iterations >= 0 || throw(ArgumentError("iterations must be nonnegative."))
+    every >= 1 || throw(ArgumentError("every must be >= 1."))
+    pin_vertex >= 1 || throw(ArgumentError("pin_vertex must be >= 1."))
+    max_step_fraction >= 0 || throw(ArgumentError("max_step_fraction must be nonnegative."))
+    return PoissonTangentialRedistributor(
+        Float64(omega),
+        Float64(pseudo_dt),
+        iterations,
+        every,
+        pin_vertex,
+        Float64(max_step_fraction),
+    )
+end
+
+redistribution_interval(r::PoissonTangentialRedistributor) = max(r.every, 1)
+
+function redistribute!(state::FrontState, r::PoissonTangentialRedistributor)
+    mesh = state.mesh
+    if mesh isa CurveMesh
+        is_closed(mesh) ||
+            error("PoissonTangentialRedistributor requires a closed CurveMesh.")
+        for _ in 1:r.iterations
+            _poisson_tangential_curve_step!(state, r)
+        end
+    elseif mesh isa SurfaceMesh
+        is_closed(mesh) ||
+            error("PoissonTangentialRedistributor requires a closed SurfaceMesh.")
+        for _ in 1:r.iterations
+            _poisson_tangential_surface_step!(state, r)
+        end
+    else
+        error("PoissonTangentialRedistributor requires a CurveMesh or SurfaceMesh.")
+    end
+    return state
+end
+
+function _poisson_rhs(weights::AbstractVector{T}, omega::Real) where {T}
+    total = sum(weights)
+    n = length(weights)
+    total > eps(T) || return zeros(T, n)
+    target = total / n
+    b = Vector{T}(undef, n)
+    for i in 1:n
+        b[i] = weights[i] > eps(T) ? T(omega) * (target / weights[i] - one(T)) : zero(T)
+    end
+    mean_b = dot(weights, b) / total
+    b .-= mean_b
+    return b
+end
+
+function _pinned_poisson_solve(L, b::AbstractVector{T}, pin_vertex::Int) where {T}
+    n = length(b)
+    1 <= pin_vertex <= n || throw(ArgumentError("pin_vertex=$pin_vertex is outside 1:$n."))
+    A = copy(L)
+    rhs = copy(b)
+    A[pin_vertex, :] .= zero(T)
+    A[:, pin_vertex] .= zero(T)
+    A[pin_vertex, pin_vertex] = one(T)
+    rhs[pin_vertex] = zero(T)
+    return A \ rhs
+end
+
+function _edge_orientation_map(mesh::CurveMesh{T}) where {T}
+    edge_map = Dict{Tuple{Int,Int},Tuple{Int,Int}}()
+    for (ei, e) in enumerate(mesh.edges)
+        i, j = e[1], e[2]
+        edge_map[(i, j)] = (ei, 1)
+        edge_map[(j, i)] = (ei, -1)
+    end
+    return edge_map
+end
+
+@inline function _cap_step(disp, max_step)
+    dnorm = norm(disp)
+    return dnorm > max_step && dnorm > 0 ? disp * (max_step / dnorm) : disp
+end
+
+function _poisson_tangential_curve_step!(state::FrontState, r::PoissonTangentialRedistributor)
+    mesh = state.mesh
+    geom = state.geom
+    pts = mesh.points
+    n = length(pts)
+    n >= 3 || return state
+    T = eltype(eltype(pts))
+
+    dec = FrontIntrinsicOps.build_dec(mesh, geom)
+    b = _poisson_rhs(geom.vertex_dual_lengths, r.omega)
+    K = dec.d0' * dec.star1 * dec.d0
+    rhs = geom.vertex_dual_lengths .* b
+    ψ = _pinned_poisson_solve(K, rhs, min(r.pin_vertex, n))
+
+    order = FrontIntrinsicOps.curve_vertex_order(mesh)
+    nloc = length(order)
+    nloc == n || error("PoissonTangentialRedistributor currently expects one closed curve component.")
+    edge_map = _edge_orientation_map(mesh)
+
+    α_by_mesh_edge = Vector{T}(undef, length(mesh.edges))
+    for (ei, e) in enumerate(mesh.edges)
+        i, j = e[1], e[2]
+        ℓ = geom.edge_lengths[ei]
+        α_by_mesh_edge[ei] = ℓ > eps(T) ? -(ψ[j] - ψ[i]) / ℓ : zero(T)
+    end
+    mean_α = dot(α_by_mesh_edge, geom.edge_lengths) / sum(geom.edge_lengths)
+    α_by_mesh_edge .-= mean_α
+
+    α_edge = Vector{T}(undef, nloc)
+    ℓ_edge = Vector{T}(undef, nloc)
+    t_edge = Vector{eltype(pts)}(undef, nloc)
+    for k in 1:nloc
+        i = order[k]
+        j = order[mod1(k + 1, nloc)]
+        entry = get(edge_map, (i, j), nothing)
+        entry === nothing && error("PoissonTangentialRedistributor: missing curve edge ($i, $j).")
+        ei, sign = entry
+        d = pts[j] - pts[i]
+        ℓ = norm(d)
+        ℓ > eps(T) || error("PoissonTangentialRedistributor: zero-length curve edge ($i, $j).")
+        α_edge[k] = T(sign) * α_by_mesh_edge[ei]
+        ℓ_edge[k] = ℓ
+        t_edge[k] = d / ℓ
+    end
+
+    new_pts = copy(pts)
+    dt = T(r.pseudo_dt)
+
+    for k in 1:nloc
+        i  = order[k]
+
+        t = t_edge[mod1(k - 1, nloc)] + t_edge[k]
+        tnorm = norm(t)
+        tnorm > eps(T) || continue
+        tangent = t / tnorm
+
+        α_vertex = T(0.5) * (α_edge[mod1(k - 1, nloc)] + α_edge[k])
+        dual_length = T(0.5) * (ℓ_edge[mod1(k - 1, nloc)] + ℓ_edge[k])
+        max_step = T(r.max_step_fraction) * dual_length
+        disp = dt * α_vertex * tangent
+        new_pts[i] = pts[i] + _cap_step(disp, max_step)
+    end
+
+    state.mesh = _replace_mesh(mesh, new_pts)
+    refresh_geometry!(state)
+    return state
+end
+
+function _poisson_tangential_surface_step!(state::FrontState, r::PoissonTangentialRedistributor)
+    mesh = state.mesh
+    geom = state.geom
+    pts = mesh.points
+    n = length(pts)
+    n >= 3 || return state
+    T = eltype(eltype(pts))
+
+    dec = FrontIntrinsicOps.build_dec(mesh, geom)
+    b = _poisson_rhs(geom.vertex_dual_areas, r.omega)
+    K = dec.d0' * dec.star1 * dec.d0
+    rhs = geom.vertex_dual_areas .* b
+    ψ = _pinned_poisson_solve(K, rhs, min(r.pin_vertex, n))
+
+    topo = build_topology(mesh)
+    acc = [zero(eltype(pts)) for _ in 1:n]
+    cnt = zeros(Int, n)
+    for e in topo.edges
+        i, j = e[1], e[2]
+        d = pts[j] - pts[i]
+        l2 = dot(d, d)
+        l2 > eps(T) || continue
+        edge_grad = ((ψ[j] - ψ[i]) / l2) * d
+        acc[i] -= edge_grad
+        acc[j] -= edge_grad
+        cnt[i] += 1
+        cnt[j] += 1
+    end
+
+    mean_len = isempty(geom.edge_lengths) ? one(T) : sum(geom.edge_lengths) / length(geom.edge_lengths)
+    max_step = T(r.max_step_fraction) * mean_len
+    dt = T(r.pseudo_dt)
+    normals = geom.vertex_normals
+    new_pts = copy(pts)
+    for i in 1:n
+        cnt[i] == 0 && continue
+        disp = dt * (acc[i] / cnt[i])
+        normal = normals[i]
+        tang_disp = disp - dot(disp, normal) * normal
+        new_pts[i] = pts[i] + _cap_step(tang_disp, max_step)
+    end
+
+    state.mesh = _replace_mesh(mesh, new_pts)
     refresh_geometry!(state)
     return state
 end
